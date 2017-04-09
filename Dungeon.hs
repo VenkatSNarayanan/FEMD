@@ -169,7 +169,7 @@ module Dungeon where
     -- Driver function to "make" my floor object based on the Rooms I have
     floor_build :: [RoomData] -> [[Tile]] -> Tile -> [[Tile]]
     floor_build [] cur_floor _ = cur_floor
-    floor_build my_rooms cur_floor new_tile = floor_build (tail(my_rooms)) (floor_room_mod (head(my_rooms)) cur_floor new_tile) new_tile
+    floor_build my_rooms cur_floor new_tile = floor_build (tail(my_rooms)) (floor_room_mod (head(my_rooms)) cur_floor new_tile) new_tile 
     
     -- Implicit function to modify the floor based on the parameters of one room
     floor_room_mod :: RoomData -> [[Tile]] -> Tile -> [[Tile]]
@@ -189,7 +189,7 @@ module Dungeon where
                      putStrLn ("\n")
     floor_display my_floor = do
                            putStrLn ((show (head(my_floor))) ++ "\n")
-                           floor_build (tail(my_floor))
+                           floor_display (tail(my_floor))
                            
     -- Function to convert a set of paths into a set of rooms. 
     -- Paths can be considered to be a 1D room
@@ -216,4 +216,4 @@ module Dungeon where
     path_build my_paths cur_floor = let
                                     all_paths_are_rooms = convert_paths_to_rooms my_paths
                                     in
-                                    floor_rooms_mod all_paths_are_rooms cur_floor Path                                   
+                                    floor_build all_paths_are_rooms cur_floor Path                                   
