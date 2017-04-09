@@ -1,6 +1,6 @@
 module Dungeon where
     import Control.Monad
-    import Data.List
+    import qualified Data.Sequence as Data_Seq
 
     -- Tile can be one of Floor, Room and Path
     data Tile = Floor | Room | Path | Exit
@@ -215,6 +215,7 @@ module Dungeon where
                                     in
                                     floor_build all_paths_are_rooms cur_floor Path
 
+    -- Function to get the entry point on a floor
     get_entry_point :: [RoomData] -> (Int, Int)
     get_entry_point list_of_rooms = let
                                     slor = sort_all_rooms list_of_rooms
@@ -223,6 +224,7 @@ module Dungeon where
                                     in
                                     (x,y)
 
+    -- Function to get the exit point on a floor
     get_exit_point :: [RoomData] -> (Int, Int)
     get_exit_point list_of_rooms = let
                                    slor = sort_all_rooms list_of_rooms
@@ -230,3 +232,8 @@ module Dungeon where
                                    y = up_left_y(last(slor))
                                    in
                                    (x, y)
+                                   
+    -- Function to convert the List of Lists to Sequence of Sequences
+    conv_floor_to_seq :: [[Tile]] -> Data_Seq.Seq (Data_Seq.Seq Tile)
+    conv_floor_to_seq [] = Data_Seq.empty
+    conv_floor_to_seq cur_floor = (Data_Seq.<|) (Data_Seq.fromList (head(cur_floor))) (conv_floor_to_seq (tail(cur_floor)))
