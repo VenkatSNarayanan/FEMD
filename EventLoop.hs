@@ -4,17 +4,21 @@ module EventLoop where
     import System.IO
     import Control.Monad
 
-    data DungeonMap = DungeonMap { dung_floor :: [[Tile]], path_data :: [PathData] }
+    data DungeonMap = DungeonMap { dung_floor :: [[Tile]], path_data :: [PathData], entry_point :: (Int, Int), exit_point :: (Int, Int)}
     data Inputs = Whatever | Quit | Display deriving(Eq)
 
     eventloop = do
                 let rand_n = randomRs (0, maxBound :: Int) (mkStdGen 0)
                 let (n, lor) = place_rooms 10 10 10 rand_n
+                let entry = get_entry_point lor
+                let exit = get_exit_point lor
+                let exit_room = build_room (fst exit) (snd exit) (fst exit) (snd exit)
                 let all_p = make_all_paths lor
                 let floor_1 = floor_init 10 10 Floor
                 let floor_2 = floor_build lor floor_1 Room
-                let floor_3 = path_build all_p floor_2
-                game_loop (DungeonMap floor_3 all_p)
+                let floor_3 = floor_build (exit_room:[]) floor_2 Exit
+                let floor_4 = path_build all_p floor_3
+                game_loop (DungeonMap floor_4 all_p entry exit)
        
     game_loop dung_map = do
                          input <- get_input

@@ -1,15 +1,15 @@
 module Dungeon where
     import Control.Monad
     
-    -- Tile can be one of Wall, Floor, Room and Path
-    data Tile = Wall | Floor | Room | Path
+    -- Tile can be one of Floor, Room and Path
+    data Tile = Floor | Room | Path | Exit
     
     -- How each tile should be displayed
     instance Show Tile where        
-       show Wall = "[]"
        show Floor = ".."
        show Room = "$$"
        show Path = "=="
+       show Exit = "XX"
     
     -- Directions. These are meant for traversing the Rooms (internally). Could be one of North, South, East or None   
     data Direction = North | South | East | None deriving(Eq, Show)
@@ -216,4 +216,20 @@ module Dungeon where
     path_build my_paths cur_floor = let
                                     all_paths_are_rooms = convert_paths_to_rooms my_paths
                                     in
-                                    floor_build all_paths_are_rooms cur_floor Path                                   
+                                    floor_build all_paths_are_rooms cur_floor Path
+                                    
+    get_entry_point :: [RoomData] -> (Int, Int)
+    get_entry_point list_of_rooms = let 
+                                    slor = sort_all_rooms list_of_rooms
+                                    x = up_left_x(head(slor))
+                                    y = down_right_y(head(slor))
+                                    in
+                                    (x,y)
+                                    
+    get_exit_point :: [RoomData] -> (Int, Int)
+    get_exit_point list_of_rooms = let 
+                                   slor = sort_all_rooms list_of_rooms
+                                   x = down_right_x(last(slor))
+                                   y = up_left_y(last(slor))
+                                   in
+                                   (x, y)
