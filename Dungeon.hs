@@ -10,7 +10,7 @@ module Dungeon where
        show Floor = " "
        show Room = "."
        show Path = "."
-       show Exit = "XX"
+       show Exit = "X"
 
     -- Directions. These are meant for traversing the Rooms (internally). Could be one of North, South, East or None
     data Direction = North | South | East | None deriving(Eq, Show)
@@ -184,9 +184,9 @@ module Dungeon where
                                                 in
                                                 unchange_before ++ (floor_rows_mod start_x end_x change_floor new_tile) ++ unchange_after
 
-    -- Function to display the floor. Just for testing and validating purposes.
-    floor_display :: [[Tile]] -> [[String]]
-    floor_display tiles = map (\a -> map show a) tiles
+    -- Function to display the floor.
+    floor_display :: Data_Seq.Seq (Data_Seq.Seq Tile) -> Data_Seq.Seq (Data_Seq.Seq String)
+    floor_display tiles = Data_Seq.mapWithIndex (\b a -> Data_Seq.mapWithIndex (\b a -> show a) a) tiles
 
     -- Function to convert a set of paths into a set of rooms.
     -- Paths can be considered to be a 1D room
@@ -232,7 +232,7 @@ module Dungeon where
                                    y = up_left_y(last(slor))
                                    in
                                    (x, y)
-                                   
+
     -- Function to convert the List of Lists to Sequence of Sequences
     conv_floor_to_seq :: [[Tile]] -> Data_Seq.Seq (Data_Seq.Seq Tile)
     conv_floor_to_seq [] = Data_Seq.empty
