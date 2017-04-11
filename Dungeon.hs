@@ -3,7 +3,7 @@ module Dungeon where
     import qualified Data.Sequence as Data_Seq
 
     -- Tile can be one of Floor, Room and Path
-    data Tile = Floor | Room | Path | Exit
+    data Tile = Floor | Room | Path | Exit deriving(Eq)
 
     -- How each tile should be displayed
     instance Show Tile where
