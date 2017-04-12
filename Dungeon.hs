@@ -213,7 +213,7 @@ module Dungeon where
     path_build my_paths cur_floor = let
                                     all_paths_are_rooms = convert_paths_to_rooms my_paths
                                     in
-                                    floor_build all_paths_are_rooms cur_floor Path
+                                    floor_build all_paths_are_rooms cur_floor Room
 
     -- Function to get the entry point on a floor
     get_entry_point :: [RoomData] -> (Int, Int)
