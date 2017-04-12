@@ -3,6 +3,7 @@ module Entity where
     import Data.Maybe
     import Control.Exception
     import Control.Arrow
+    import Debug.Trace
 
     data Weapon = Weapon {charges :: Int, weight :: Int, might::Int, hit:: Int, crit:: Int, minrange :: Int, maxrange :: Int} deriving(Show)
     data PotionEffect = Heal | Restore | Poison deriving (Show)

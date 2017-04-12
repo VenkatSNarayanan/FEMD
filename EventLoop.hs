@@ -62,32 +62,31 @@ module EventLoop where
 
     handle_display dung_map = do
                               let floor_map = floor_display (dung_floor(dung_map))
-                              let base_map = Data_Seq.update (snd $ entry_point dung_map) (Data_Seq.update (fst $ entry_point dung_map) "@" (Data_Seq.index floor_map (snd $ entry_point dung_map))) floor_map
-                              putStrLn (show (monsters(dung_map)) ++ "\n")
-                              putStrLn (show (player(dung_map)) ++ "\n")
-                              putStrLn (Data_Seq.foldrWithIndex (\i a b -> (Data_Seq.foldrWithIndex (\i a b -> a ++ b) "" a)++"\n"++b) "\n" base_map)
+                              let base_map = Data_Seq.update (fst $ entry_point dung_map) (Data_Seq.update (snd $ entry_point dung_map) "@" (Data_Seq.index floor_map (fst $ entry_point dung_map))) floor_map
+                              let monst_map = Map.foldrWithKey (\(row,col) _ basemap -> Data_Seq.update (row) (Data_Seq.update (col) "T" (Data_Seq.index basemap (row))) basemap) base_map (monsters dung_map)
+                              putStrLn (Data_Seq.foldrWithIndex (\i a b -> (Data_Seq.foldrWithIndex (\i a b -> a ++ b) "" a)++"\n"++b) "\n" monst_map)
 
     handle_exit = do
                   putStrLn "GGWP!!\n"
                   return ()
 
     move_up dung_map = do
-                      game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (-1 + (fst(entry_point(dung_map))), (snd(entry_point(dung_map)))), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=Map.empty, randomnums = (randomnums(dung_map))}
+                      game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (-1+(fst(entry_point(dung_map))), (snd(entry_point(dung_map)))), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=Map.empty, randomnums = (randomnums(dung_map))}
 
     move_down dung_map = do
-                         game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (1 + (fst(entry_point(dung_map))), (snd(entry_point(dung_map)))), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=Map.empty, randomnums = (randomnums(dung_map))}
+                         game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (1+(fst(entry_point(dung_map))), (snd(entry_point(dung_map)))), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=Map.empty, randomnums = (randomnums(dung_map))}
 
     move_left dung_map = do
-                         game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = ((fst(entry_point(dung_map))), -1 + (snd(entry_point(dung_map)))), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=Map.empty, randomnums = (randomnums(dung_map))}
+                         game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = ((fst(entry_point(dung_map))), (-1+snd(entry_point(dung_map)))), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=Map.empty, randomnums = (randomnums(dung_map))}
 
     move_right dung_map = do
-                          game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = ((fst(entry_point(dung_map))), 1 + (snd(entry_point(dung_map)))), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=Map.empty, randomnums = (randomnums(dung_map))}
+                          game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = ((fst(entry_point(dung_map))), (1+snd(entry_point(dung_map)))), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=Map.empty, randomnums = (randomnums(dung_map))}
 
     validate_and_move_up dung_map = do
                                     let cur_floor = (dung_floor(dung_map))
                                     let y = (snd(entry_point(dung_map)))
                                     let x = -1 + (fst(entry_point(dung_map)))
-                                    if (Data_Seq.index (Data_Seq.index cur_floor x) y) == Floor then
+                                    if (Data_Seq.index (Data_Seq.index cur_floor x) y) == Floor || isJust(Map.lookup (x,y) (monsters dung_map)) then
                                        game_loop dung_map
                                     else
                                        move_up dung_map
@@ -96,7 +95,7 @@ module EventLoop where
                                       let cur_floor = (dung_floor(dung_map))
                                       let y = (snd(entry_point(dung_map)))
                                       let x = 1 + (fst(entry_point(dung_map)))
-                                      if (Data_Seq.index (Data_Seq.index cur_floor x) y) == Floor then
+                                      if (Data_Seq.index (Data_Seq.index cur_floor x) y) == Floor || isJust(Map.lookup (x,y) (monsters dung_map)) then
                                          game_loop dung_map
                                       else
                                          move_down dung_map
@@ -105,7 +104,7 @@ module EventLoop where
                                       let cur_floor = (dung_floor(dung_map))
                                       let y = -1 + (snd(entry_point(dung_map)))
                                       let x = (fst(entry_point(dung_map)))
-                                      if (Data_Seq.index (Data_Seq.index cur_floor x) y) == Floor then
+                                      if (Data_Seq.index (Data_Seq.index cur_floor x) y) == Floor || isJust(Map.lookup (x,y) (monsters dung_map)) then
                                          game_loop dung_map
                                       else
                                          move_left dung_map
@@ -114,7 +113,7 @@ module EventLoop where
                                        let cur_floor = (dung_floor(dung_map))
                                        let y = 1 + (snd(entry_point(dung_map)))
                                        let x = (fst(entry_point(dung_map)))
-                                       if (Data_Seq.index (Data_Seq.index cur_floor x) y) == Floor then
+                                       if (Data_Seq.index (Data_Seq.index cur_floor x) y) == Floor || isJust(Map.lookup (x,y) (monsters dung_map)) then
                                           game_loop dung_map
                                        else
                                           move_right dung_map
@@ -131,7 +130,6 @@ module EventLoop where
             let absvalue = (\a -> if (a<0) then (-a) else a)
             let monst_dist = (absvalue((fst playpos) - (fst coord_head))) + (absvalue((snd playpos) - (snd coord_head)))
             let can_attack = fromMaybe False (monster_weapon >>= (\w -> Just (inRange monst_dist (minrange w) (maxrange w))))
-            putStrLn (show(can_attack))
             let curr_floor = dung_floor(dung_map)
             let (monst,playerpost,randSeq) = if can_attack then
                                                 combat head_monster (player dung_map) monst_dist (randomnums dung_map)
@@ -161,30 +159,30 @@ module EventLoop where
                 move_monsters_impl DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.insert newpos (fromJust monst) (Map.delete coord_head (monsters dung_map))), randomnums=randSeq} coord_tail
 
     select_coords :: [RoomData] -> [Int] -> (Int, Int)
-    select_coords list_of_rooms rands = let 
+    select_coords list_of_rooms rands = let
                                          select_room = (rands!!0 `rem` (length(list_of_rooms)))
                                          cur_room = (list_of_rooms)!!select_room
                                          select_x_coord = (up_left_x(cur_room)) + (rands!!1 `rem` ((down_right_x(cur_room)) - (up_left_x(cur_room)) + 1))
                                          select_y_coord = (up_left_y(cur_room)) + (rands!!2 `rem` ((down_right_y(cur_room)) - (up_left_y(cur_room)) + 1))
-                                         in  
+                                         in
                                          (select_x_coord, select_y_coord)
-                             
+
     make_monster :: DungeonMap -> DungeonMap
     make_monster dung_map = if (make_decision (take 10 (randomnums(dung_map))) 10) then
-                               let 
+                               let
                                mons_coords = select_coords (room_data(dung_map)) (take 3 (tail(randomnums(dung_map))))
-                               new_mons = Character {stats = Stats{hp=20, strength=10, skill=5, speed=10, luck=5, defense=5}, items=[WeaponTag Weapon{charges=46, weight=5, might=5, hit=90, crit=0, minrange=1, maxrange=1}, PotionTag Potion{effect=Heal, remain=3}], status=Status{currhp=20, condition=Healthy}}
+                               new_mons = Character {stats = Stats{hp=20, strength=10, skill=5, speed=10, luck=5, defense=5}, items=[WeaponTag Weapon{charges=46, weight=5, might=5, hit=90, crit=0, minrange=1, maxrange=1}], status=Status{currhp=20, condition=Healthy}}
                                in
-                               DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=(player(dung_map)), monsters=(Map.insert (mons_coords) (new_mons) (monsters(dung_map))), randomnums = (drop 4 (randomnums(dung_map)))}                               
-                            else 
+                               DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=(player(dung_map)), monsters=(Map.insert (mons_coords) (new_mons) (monsters(dung_map))), randomnums = (drop 4 (randomnums(dung_map)))}
+                            else
                                DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=(player(dung_map)), monsters=(monsters(dung_map)), randomnums = (tail(randomnums(dung_map)))}
-                               
+
     make_decision :: [Int] -> Int -> Bool
     make_decision randoms percentage = let
                                        rand_100 = map (`rem` 100) randoms
                                        new_randoms = filter (> (100 - percentage)) rand_100
                                        in
-                                       if (length(new_randoms)) > 0 then 
+                                       if (length(new_randoms)) > 0 then
                                           True
                                        else
                                           False
