@@ -8,8 +8,8 @@ module Dungeon where
     -- How each tile should be displayed
     instance Show Tile where
        show Floor = " "
-       show Room = "."
-       show Path = "."
+       show Room = "R"
+       show Path = "P"
        show Exit = "X"
 
     -- Directions. These are meant for traversing the Rooms (internally). Could be one of North, South, East or None
