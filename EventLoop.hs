@@ -9,18 +9,20 @@ module EventLoop where
     import qualified Data.Sequence as Data_Seq
     import Debug.Trace
     import qualified Data.Map.Strict as Map
+    import System.Process
+    import qualified Data.Foldable as Data_Fold
 
     data DungeonMap = DungeonMap { dung_floor :: Data_Seq.Seq (Data_Seq.Seq Tile), room_data :: [RoomData], path_data :: [PathData], entry_point :: (Int, Int), exit_point :: (Int, Int), player :: Character, monsters :: Map.Map (Int,Int) Character, randomnums :: [Int]}
     data Inputs = Quit | MLeft | MDown | MUp | MRight | Quaff | WieldLeft | WieldDown | WieldUp | WieldRight | Wait | Whatever
 
     eventloop pchar_init = do
                            let rand_n = randomRs (0, maxBound::Int) (mkStdGen 0)
-                           let (n, lor) = place_rooms 10 10 10 rand_n
+                           let (n, lor) = place_rooms 25 25 10 rand_n
                            let entry = get_entry_point lor
                            let exit = get_exit_point lor
                            let exit_room = build_room (fst exit) (snd exit) (fst exit) (snd exit)
                            let all_p = make_all_paths lor
-                           let floor_1 = floor_init 10 10 Floor
+                           let floor_1 = floor_init 25 25 Floor
                            let floor_2 = floor_build lor floor_1 Room
                            let floor_3 = floor_build (exit_room:[]) floor_2 Exit
                            let floor_4 = path_build all_p floor_3
@@ -28,6 +30,7 @@ module EventLoop where
 
     game_loop dung_map = do
                          let new_dung_map = make_monster dung_map
+               --          system "clear"
                          handle_display new_dung_map
                          input <- get_input
                          case input of
@@ -45,34 +48,34 @@ module EventLoop where
                               Whatever -> game_loop new_dung_map
 
     get_input = do
-                what_to_do <- getLine
+                what_to_do <- getChar
                 case what_to_do of
-                     "x" -> return Quit
-                     "h" -> return MLeft
-                     "j" -> return MDown
-                     "k" -> return MUp
-                     "l" -> return MRight
-                     "q" -> return Quaff
-                     "w" -> return WieldUp
-                     "a" -> return WieldLeft
-                     "s" -> return WieldDown
-                     "d" -> return WieldRight
-                     "m" -> return Wait
+                     'x' -> return Quit
+                     'h' -> return MLeft
+                     'j' -> return MDown
+                     'k' -> return MUp
+                     'l' -> return MRight
+                     'q' -> return Quaff
+                     'w' -> return WieldUp
+                     'a' -> return WieldLeft
+                     's' -> return WieldDown
+                     'd' -> return WieldRight
+                     'm' -> return Wait
                      _   -> return Whatever
 
     handle_display dung_map = do
                               let floor_map = floor_display (dung_floor(dung_map))
                               let base_map = Data_Seq.update (snd $ entry_point dung_map) (Data_Seq.update (fst $ entry_point dung_map) "@" (Data_Seq.index floor_map (snd $ entry_point dung_map))) floor_map
                               let monst_map = Map.foldrWithKey (\(row,col) _ basemap -> Data_Seq.update (col) (Data_Seq.update (row) "T" (Data_Seq.index basemap (col))) basemap) base_map (monsters dung_map)
-                              temp_dis (monst_map)
-                              
-    temp_dis mymap = do
-                     putStrLn (show(Data_Seq.take 1 (mymap)) ++ "\n")
-                     if (Data_Seq.null (Data_Seq.drop 1 (mymap))) then 
-                        putStrLn ""
+                              --putStrLn (temp_dis (monst_map))
+                              putStrLn(Data_Seq.foldrWithIndex (\_ a b -> (Data_Seq.foldrWithIndex (\_ a b -> a++b) "" a)++"\n"++b) "\n" monst_map)
+    
+    temp_dis :: Data_Seq.Seq (Data_Seq.Seq String) -> String                          
+    temp_dis mymap = if (Data_Seq.null (mymap)) then 
+                        ""
                      else
-                        temp_dis (Data_Seq.drop 1 (mymap))
-
+                        ((foldr (++) "" (Data_Fold.toList (Data_Seq.index (mymap) 0))) ++ "\n" ++ (temp_dis (Data_Seq.drop 1 (mymap))))
+                     
     handle_exit = do
                   putStrLn "GGWP!!\n"
                   return ()
@@ -93,7 +96,7 @@ module EventLoop where
                                     let cur_floor = (dung_floor(dung_map))
                                     let y = -1 + (snd(entry_point(dung_map)))
                                     let x = (fst(entry_point(dung_map)))
-                                    if (Data_Seq.index (Data_Seq.index cur_floor y) x) == Floor || isJust(Map.lookup (y,x) (monsters dung_map)) then
+                                    if (Data_Seq.index (Data_Seq.index cur_floor y) x) == Floor || isJust(Map.lookup (x,y) (monsters dung_map)) then
                                        game_loop dung_map
                                     else
                                        move_up dung_map
@@ -102,7 +105,7 @@ module EventLoop where
                                       let cur_floor = (dung_floor(dung_map))
                                       let y = 1 + (snd(entry_point(dung_map)))
                                       let x = (fst(entry_point(dung_map)))
-                                      if (Data_Seq.index (Data_Seq.index cur_floor y) x) == Floor || isJust(Map.lookup (y,x) (monsters dung_map)) then
+                                      if (Data_Seq.index (Data_Seq.index cur_floor y) x) == Floor || isJust(Map.lookup (x,y) (monsters dung_map)) then
                                          game_loop dung_map
                                       else
                                          move_down dung_map
@@ -111,7 +114,7 @@ module EventLoop where
                                       let cur_floor = (dung_floor(dung_map))
                                       let y = (snd(entry_point(dung_map)))
                                       let x = -1 + (fst(entry_point(dung_map)))
-                                      if (Data_Seq.index (Data_Seq.index cur_floor y) x) == Floor || isJust(Map.lookup (y,x) (monsters dung_map)) then
+                                      if (Data_Seq.index (Data_Seq.index cur_floor y) x) == Floor || isJust(Map.lookup (x,y) (monsters dung_map)) then
                                          game_loop dung_map
                                       else
                                          move_left dung_map
@@ -120,7 +123,7 @@ module EventLoop where
                                        let cur_floor = (dung_floor(dung_map))
                                        let y = (snd(entry_point(dung_map)))
                                        let x = 1 + (fst(entry_point(dung_map)))
-                                       if (Data_Seq.index (Data_Seq.index cur_floor y) x) == Floor || isJust(Map.lookup (y,x) (monsters dung_map)) then
+                                       if (Data_Seq.index (Data_Seq.index cur_floor y) x) == Floor || isJust(Map.lookup (x,y) (monsters dung_map)) then
                                           game_loop dung_map
                                        else
                                           move_right dung_map
@@ -139,22 +142,25 @@ module EventLoop where
             let can_attack = fromMaybe False (monster_weapon >>= (\w -> Just (inRange monst_dist (minrange w) (maxrange w))))
             let curr_floor = dung_floor(dung_map)
             let (monst,playerpost,randSeq) = if can_attack then
-                                                trace "Combat occured!!\n"
-                                                trace (show(player(dung_map)) ++ "\n" ++ show(monsters(dung_map)) ++ "\n")
+                                                trace "Combat going to occur!!\n"
+                                                trace (show(player(dung_map)) ++ "\n" ++ show(head_monster) ++ "\n")
                                                 (combat head_monster (player dung_map) monst_dist (map (`rem` 100) (randomnums(dung_map))))
                                         else
                                             (Just head_monster,Just (player dung_map),(randomnums dung_map))
             let newpos = if (can_attack) then
+                            trace "Combat occured!!\n"
+                            trace (show(fromJust playerpost) ++ "\n" ++ show(fromJust monst) ++ "\n")                            
                             coord_head
-                        else if ((fst coord_head) < (fst playpos)) && ((Data_Seq.index (Data_Seq.index curr_floor (1+fst coord_head)) (snd coord_head))==Room && isNothing(Map.lookup ((fst coord_head)+1,(snd coord_head)) (monsters dung_map))) then
+                        else if ((fst coord_head) < (fst playpos)) && ((Data_Seq.index (Data_Seq.index curr_floor (snd coord_head)) (1+fst coord_head))==Room && isNothing(Map.lookup ((fst coord_head)+1,(snd coord_head)) (monsters dung_map))) then
                             ((fst coord_head) + 1,snd coord_head)
-                        else if ((fst coord_head) > (fst playpos)) && ((Data_Seq.index (Data_Seq.index curr_floor (-1+fst coord_head)) (snd coord_head))==Room && isNothing(Map.lookup ((fst coord_head)-1,(snd coord_head)) (monsters dung_map))) then
+                        else if ((fst coord_head) > (fst playpos)) && ((Data_Seq.index (Data_Seq.index curr_floor (snd coord_head)) (-1+fst coord_head))==Room && isNothing(Map.lookup ((fst coord_head)-1,(snd coord_head)) (monsters dung_map))) then
                             ((fst coord_head) - 1,snd coord_head)
-                        else if ((snd coord_head) < (snd playpos)) && ((Data_Seq.index (Data_Seq.index curr_floor (fst coord_head)) (1+snd coord_head))==Room && isNothing(Map.lookup ((fst coord_head),(snd coord_head)+1) (monsters dung_map))) then
+                        else if ((snd coord_head) < (snd playpos)) && ((Data_Seq.index (Data_Seq.index curr_floor (1+snd coord_head)) (fst coord_head))==Room && isNothing(Map.lookup ((fst coord_head),(snd coord_head)+1) (monsters dung_map))) then
                             (fst coord_head,(snd coord_head) + 1)
-                        else if ((snd coord_head) > (snd playpos)) && ((Data_Seq.index (Data_Seq.index curr_floor (fst coord_head)) (-1+snd coord_head))==Room && isNothing(Map.lookup ((fst coord_head),(snd coord_head)-1) (monsters dung_map))) then
+                        else if ((snd coord_head) > (snd playpos)) && ((Data_Seq.index (Data_Seq.index curr_floor (-1+snd coord_head)) (fst coord_head))==Room && isNothing(Map.lookup ((fst coord_head),(snd coord_head)-1) (monsters dung_map))) then
                             (fst coord_head,(snd coord_head) - 1)
                         else
+                            trace "Did not move...\n"
                             coord_head
             if isNothing(playerpost) then
                 putStrLn "Sorry, you got KOed!\n"
@@ -171,18 +177,20 @@ module EventLoop where
     select_coords list_of_rooms rands = let
                                          select_room = (rands!!0 `rem` (length(list_of_rooms)))
                                          cur_room = (list_of_rooms)!!select_room
-                                         select_x_coord = (up_left_x(cur_room)) + (rands!!1 `rem` ((down_right_x(cur_room)) - (up_left_x(cur_room)) + 1))
-                                         select_y_coord = (up_left_y(cur_room)) + (rands!!2 `rem` ((down_right_y(cur_room)) - (up_left_y(cur_room)) + 1))
+                                         x = rands!!1 `rem` ((down_right_x(cur_room)) - (up_left_x(cur_room)))
+                                         y = rands!!2 `rem` ((down_right_y(cur_room)) - (up_left_y(cur_room)))
+                                         select_x_coord = (up_left_x(cur_room)) + x
+                                         select_y_coord = (up_left_y(cur_room)) + y
                                          in
-                                         trace ((show(select_x_coord)) ++ ":" ++ (show(select_y_coord)) ++ "\n")
                                          (select_x_coord, select_y_coord)
 
     make_monster :: DungeonMap -> DungeonMap
-    make_monster dung_map = if (make_decision (take 10 (randomnums(dung_map))) 10) then
+    make_monster dung_map = if (make_decision (take 10 (randomnums(dung_map))) 10) && (Map.null(monsters(dung_map))) then
                                let
                                mons_coords = select_coords (room_data(dung_map)) (take 3 (tail(randomnums(dung_map))))
                                new_mons = Character {stats = Stats{hp=20, strength=10, skill=5, speed=10, luck=5, defense=5}, items=[WeaponTag Weapon{charges=46, weight=5, might=5, hit=90, crit=0, minrange=1, maxrange=1}], status=Status{currhp=20, condition=Healthy}}
                                in
+                               trace ("Monster at " ++ show(mons_coords) ++ "\n")
                                DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=(player(dung_map)), monsters=(Map.insert (mons_coords) (new_mons) (monsters(dung_map))), randomnums = (drop 4 (randomnums(dung_map)))}
                             else
                                DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=(player(dung_map)), monsters=(monsters(dung_map)), randomnums = (tail(randomnums(dung_map)))}

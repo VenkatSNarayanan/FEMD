@@ -57,7 +57,8 @@ module Entity where
                     if (hitrate < head (randomstream))
                     then Just False
                     else Just True))
-            strstate1 = tail randomstream
+            strstate1 = (trace ("Attacker 1 Hit? " ++ (show(ishit1)) ++ "\n"))
+                        (tail randomstream)
             dmg1 = max 0 (
                 if ishit1
                 then ((strength stats1)-(defense stats2)+(fromMaybe 0 (liftM might weapon1)))
@@ -74,9 +75,10 @@ module Entity where
                     else Just True)))
                 else False
             strstate2 =
-                if (survive1)
+                (trace ("Attacker 2 Hit? " ++ (show(ishit2)) ++ "\n"))
+                (if (survive1)
                 then tail(strstate1)
-                else strstate1
+                else strstate1)
             dmg2 = max 0 (
                 if ishit2
                 then ((strength stats2)-(defense stats1)+(fromMaybe 0 (liftM might weapon1)))
@@ -101,10 +103,10 @@ module Entity where
             newstatus2 = Status {currhp=currhp2,condition=cond2}
             in
                 (
-                if (survive2)
+                if (currhp1 > 0)
                 then Just (Character {stats=stats1,items=weaponuse1,status=newstatus1})
                 else (Nothing),
-                if (survive1)
+                if (currhp2 > 0)
                 then Just ((Character {stats=stats2,items=weaponuse2,status=newstatus2}))
                 else (Nothing),
                 strstate2
