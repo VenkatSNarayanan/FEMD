@@ -19,6 +19,11 @@ module Entity where
     getWeapon [] = Nothing
     getWeapon ((PotionTag _):xs) = getWeapon xs
     getWeapon ((WeaponTag weapon) :xs) = Just (weapon)
+    
+    getPotion :: [Item] -> Maybe Potion
+    getPotion [] = Nothing
+    getPotion ((WeaponTag _):xs) = getPotion xs
+    getPotion ((PotionTag potion) :xs) = Just (potion)
 
     useWeapon :: [Item] -> [Item]
     useWeapon [] = []
@@ -42,10 +47,10 @@ module Entity where
 
     combat :: Character -> Character -> Int -> [Int] -> (Maybe Character,Maybe Character,[Int])
     combat (Character {stats=stats1,items=items1,status=status1}) (Character {stats=stats2,items=items2,status=status2}) range randomstream =
-        let weapon1 = getWeapon items1
+        let weapon1 = trace "Just entered combat!!!\n" (getWeapon items1)
             weapon2 = getWeapon items2
-            p1 = Character {stats=stats1,items=items1,status=status1}
-            p2 = Character {stats=stats2,items=items2,status=status2}
+            p1 = trace (show(Character {stats=stats1,items=items1,status=status1}) ++ "\n") Character {stats=stats1,items=items1,status=status1}
+            p2 = trace (show(Character {stats=stats2,items=items2,status=status2}) ++ "\n") (Character {stats=stats2,items=items2,status=status2})
             as1 = attackspeed p1
             as2 = attackspeed p2
             hitrate1 = hitrate p1
@@ -109,5 +114,5 @@ module Entity where
                 if (currhp2 > 0)
                 then Just ((Character {stats=stats2,items=weaponuse2,status=newstatus2}))
                 else (Nothing),
-                strstate2
+                trace "going to exit combat!!\n"strstate2
                 )

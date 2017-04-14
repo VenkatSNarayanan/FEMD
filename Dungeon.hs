@@ -1,6 +1,8 @@
 module Dungeon where
     import Control.Monad
     import qualified Data.Sequence as Data_Seq
+    import qualified Data.Map.Strict as Map
+    import Entity
 
     -- Tile can be one of Floor, Room and Path
     data Tile = Floor | Room | Path | Exit deriving(Eq)
@@ -237,3 +239,32 @@ module Dungeon where
     conv_floor_to_seq :: [[Tile]] -> Data_Seq.Seq (Data_Seq.Seq Tile)
     conv_floor_to_seq [] = Data_Seq.empty
     conv_floor_to_seq cur_floor = (Data_Seq.<|) (Data_Seq.fromList (head(cur_floor))) (conv_floor_to_seq (tail(cur_floor)))
+    
+    make_decision :: [Int] -> Int -> Bool
+    make_decision randoms percentage = let
+                                       rand_100 = map (`rem` 100) randoms
+                                       new_randoms = filter (> (100 - percentage)) rand_100
+                                       in
+                                       if (length(new_randoms)) > 0 then
+                                          True
+                                       else
+                                          False
+
+    get_potions :: [RoomData] -> Int -> [Int] -> ([(Int, Int)], [Int])
+    get_potions list_of_rooms dnsty rands = get_potions_impl list_of_rooms dnsty rands []
+
+    get_potions_impl :: [RoomData] -> Int -> [Int] -> [(Int, Int)] -> ([(Int, Int)], [Int])
+    get_potions_impl _ 0 rands p_list = (p_list, rands)
+    get_potions_impl list_of_rooms dnsty rands p_list = let
+                                            room_select = (head(rands)) `rem` (length(list_of_rooms))
+                                            selected_room = list_of_rooms!!(room_select)
+                                            select_x = (up_left_x(selected_room)) + (rands!!1 `rem` ((down_right_x(selected_room)) - (up_left_x(selected_room))))
+                                            select_y = (up_left_y(selected_room)) + (rands!!2 `rem` ((down_right_y(selected_room)) - (up_left_y(selected_room))))   
+                                            in
+                                            if (make_decision (take 10 (drop 4 rands)) 10) then 
+                                               get_potions_impl (list_of_rooms) (dnsty-1) (drop 13 rands) ((select_x, select_y) : p_list)
+                                            else 
+                                               get_potions_impl (list_of_rooms) (dnsty-1) (drop 13 rands) (p_list)
+                                                    
+    get_potion_map :: [(Int, Int)] -> Map.Map (Int, Int) Potion
+    get_potion_map p_list = Map.fromList (zip (p_list) (repeat(Potion{effect=Heal, remain=1})))
