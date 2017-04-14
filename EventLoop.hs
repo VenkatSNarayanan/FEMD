@@ -12,7 +12,7 @@ module EventLoop where
     import System.Process
     import qualified Data.Foldable as Data_Fold
 
-    data DungeonMap = DungeonMap { dung_floor :: Data_Seq.Seq (Data_Seq.Seq Tile), room_data :: [RoomData], path_data :: [PathData], entry_point :: (Int, Int), exit_point :: (Int, Int), player :: Character, monsters :: Map.Map (Int,Int) Character, randomnums :: [Int], floor_number :: Int, potions :: Map.Map (Int, Int) Potion}
+    data DungeonMap = DungeonMap { dung_floor :: Data_Seq.Seq (Data_Seq.Seq Tile), room_data :: [RoomData], path_data :: [PathData], entry_point :: (Int, Int), exit_point :: (Int, Int), player :: Character, monsters :: Map.Map (Int,Int) Character, randomnums :: [Int], floor_number :: Int, potions :: Map.Map (Int, Int) Potion, weapons :: Map.Map (Int, Int) Weapon}
     data Inputs = Quit | MLeft | MDown | MUp | MRight | Quaff | WieldLeft | WieldDown | WieldUp | WieldRight | Wait | Whatever
 
     eventloop val pchar_init = do
@@ -28,7 +28,9 @@ module EventLoop where
                            let floor_4 = path_build all_p floor_3
                            let (p_list, new_n) = get_potions lor 10 n
                            let p_map = get_potion_map p_list
-                           game_loop (DungeonMap (conv_floor_to_seq floor_4) lor all_p entry exit pchar_init Map.empty new_n val p_map)
+                           let (w_list, newer_n) = get_weapons lor 10 new_n p_map
+                           let w_map = get_weapon_map w_list
+                           game_loop (DungeonMap (conv_floor_to_seq floor_4) lor all_p entry exit pchar_init Map.empty new_n val p_map w_map)
     
     game_loop dung_map
                    |(entry_point(dung_map)) == (exit_point(dung_map)) = eventloop ((floor_number(dung_map))+1) (player(dung_map))
@@ -73,8 +75,9 @@ module EventLoop where
                               let base_map = Data_Seq.update (snd $ entry_point dung_map) (Data_Seq.update (fst $ entry_point dung_map) "@" (Data_Seq.index floor_map (snd $ entry_point dung_map))) floor_map
                               let monst_map = Map.foldrWithKey (\(row,col) _ basemap -> Data_Seq.update (col) (Data_Seq.update (row) "T" (Data_Seq.index basemap (col))) basemap) base_map (monsters dung_map)
                               let p_map = Map.foldrWithKey (\(row,col) _ basemap -> Data_Seq.update (col) (Data_Seq.update (row) "." (Data_Seq.index basemap (col))) basemap) monst_map (potions dung_map)
+                              let w_map = Map.foldrWithKey (\(row,col) _ basemap -> Data_Seq.update (col) (Data_Seq.update (row) "w" (Data_Seq.index basemap (col))) basemap) p_map (weapons dung_map)                              
                               --putStrLn (temp_dis (monst_map))
-                              putStrLn(Data_Seq.foldrWithIndex (\_ a b -> (Data_Seq.foldrWithIndex (\_ a b -> a++b) "" a)++"\n"++b) "\n" p_map)
+                              putStrLn(Data_Seq.foldrWithIndex (\_ a b -> (Data_Seq.foldrWithIndex (\_ a b -> a++b) "" a)++"\n"++b) "\n" w_map)
     
     temp_dis :: Data_Seq.Seq (Data_Seq.Seq String) -> String                          
     temp_dis mymap = if (Data_Seq.null (mymap)) then 
@@ -91,44 +94,68 @@ module EventLoop where
                        let new_y = (snd(entry_point(dung_map))) - 1
                        if (Map.member (new_x, new_y) (potions(dung_map))) then
                           do
-                          let new_remain = (remain(fromJust(getPotion(items(player(dung_map)))))) + 1
-                          let player_mod = Character {stats=(stats(player(dung_map))), items = [WeaponTag (fromJust(getWeapon(items(player(dung_map))))), PotionTag Potion {effect=Heal, remain=new_remain}], status=(status(player(dung_map)))}
-                          move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(Map.delete (new_x, new_y) (potions(dung_map)))}
-                       else 
-                          move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map))} 
-
+                          let player_mod = Character {stats=(stats(player(dung_map))), items = (digPotion(items(player(dung_map)))), status=(status(player(dung_map)))}
+                          move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=((Map.delete (new_x, new_y) (potions(dung_map)))), weapons=(weapons(dung_map))}
+                       else if (Map.member (new_x, new_y) (weapons(dung_map))) then
+                          do
+                          let new_weapon = fromJust (Map.lookup (new_x, new_y) (weapons(dung_map)))
+                          let new_item_set = (items(player(dung_map))) ++ [(WeaponTag (new_weapon))]
+                          let player_mod = Character {stats=(stats(player(dung_map))), items = new_item_set, status=(status(player(dung_map)))}
+                          move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(Map.delete (new_x, new_y) (weapons(dung_map)))} 
+                       else
+                          do
+                          move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))} 
+                          
     move_down dung_map = do
                          let new_x = (fst(entry_point(dung_map)))
                          let new_y = (snd(entry_point(dung_map))) + 1
                          if (Map.member (new_x, new_y) (potions(dung_map))) then
                             do
-                            let new_remain = (remain(fromJust(getPotion(items(player(dung_map)))))) + 1
-                            let player_mod = Character {stats=(stats(player(dung_map))), items = [WeaponTag (fromJust(getWeapon(items(player(dung_map))))), PotionTag Potion {effect=Heal, remain=new_remain}], status=(status(player(dung_map)))}
-                            move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(Map.delete (new_x, new_y) (potions(dung_map)))}
-                         else 
-                            move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map))} 
+                            let player_mod = Character {stats=(stats(player(dung_map))), items = (digPotion(items(player(dung_map)))), status=(status(player(dung_map)))}
+                            move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(Map.delete (new_x, new_y) (potions(dung_map))), weapons=(weapons(dung_map))}
+                         else if (Map.member (new_x, new_y) (weapons(dung_map))) then
+                            do
+                            let new_weapon = fromJust (Map.lookup (new_x, new_y) (weapons(dung_map)))
+                            let new_item_set = (items(player(dung_map))) ++ [(WeaponTag (new_weapon))]
+                            let player_mod = Character {stats=(stats(player(dung_map))), items = new_item_set, status=(status(player(dung_map)))}
+                            move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(Map.delete (new_x, new_y) (weapons(dung_map)))} 
+                         else
+                            do
+                          move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))} 
 
     move_left dung_map = do
                          let new_x = (fst(entry_point(dung_map))) - 1
                          let new_y = (snd(entry_point(dung_map)))
                          if (Map.member (new_x, new_y) (potions(dung_map))) then
                             do
-                            let new_remain = (remain(fromJust(getPotion(items(player(dung_map)))))) + 1
-                            let player_mod = Character {stats=(stats(player(dung_map))), items = [WeaponTag (fromJust(getWeapon(items(player(dung_map))))), PotionTag Potion {effect=Heal, remain=new_remain}], status=(status(player(dung_map)))}
-                            move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(Map.delete (new_x, new_y) (potions(dung_map)))}
-                         else 
-                            move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map))} 
+                            let player_mod = Character {stats=(stats(player(dung_map))), items = (digPotion(items(player(dung_map)))), status=(status(player(dung_map)))}
+                            move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(Map.delete (new_x, new_y) (potions(dung_map))), weapons=(weapons(dung_map))}
+                         else if (Map.member (new_x, new_y) (weapons(dung_map))) then
+                            do
+                            let new_weapon = fromJust (Map.lookup (new_x, new_y) (weapons(dung_map)))
+                            let new_item_set = (items(player(dung_map))) ++ [(WeaponTag (new_weapon))]
+                            let player_mod = Character {stats=(stats(player(dung_map))), items = new_item_set, status=(status(player(dung_map)))}
+                            move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(Map.delete (new_x, new_y) (weapons(dung_map)))} 
+                         else
+                            do
+                            move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))} 
 
     move_right dung_map = do
                           let new_x = (fst(entry_point(dung_map))) + 1
                           let new_y = (snd(entry_point(dung_map))) 
                           if (Map.member (new_x, new_y) (potions(dung_map))) then
                              do
-                             let new_remain = (remain(fromJust(getPotion(items(player(dung_map)))))) + 1
-                             let player_mod = Character {stats=(stats(player(dung_map))), items = [WeaponTag (fromJust(getWeapon(items(player(dung_map))))), PotionTag Potion {effect=Heal, remain=new_remain}], status=(status(player(dung_map)))}
-                             move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(Map.delete (new_x, new_y) (potions(dung_map)))}
-                          else 
-                             move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map))} 
+                             let player_mod = Character {stats=(stats(player(dung_map))), items = (digPotion(items(player(dung_map)))), status=(status(player(dung_map)))}
+                             move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(Map.delete (new_x, new_y) (potions(dung_map))), weapons=(weapons(dung_map))}
+                          else if (Map.member (new_x, new_y) (weapons(dung_map))) then
+                             do
+                             let new_weapon = fromJust (Map.lookup (new_x, new_y) (weapons(dung_map)))
+                             let new_item_set = (items(player(dung_map))) ++ [(WeaponTag (new_weapon))]
+                             let player_mod = Character {stats=(stats(player(dung_map))), items = new_item_set, status=(status(player(dung_map)))}
+                             move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = player_mod, monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(Map.delete (new_x, new_y) (weapons(dung_map)))} 
+                          else
+                             do
+                             move_monsters DungeonMap {dung_floor = (dung_floor(dung_map)), room_data = (room_data(dung_map)), path_data = (path_data(dung_map)), entry_point = (new_x, new_y), exit_point = (exit_point(dung_map)), player = (player(dung_map)), monsters=(monsters(dung_map)), randomnums = (randomnums(dung_map)), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))} 
 
     validate_and_move_up dung_map = do
                                     let cur_floor = (dung_floor(dung_map))
@@ -205,11 +232,11 @@ module EventLoop where
             else if isNothing(monst) then
                 do
                 --putStrLn"The monster died!\n"
-                trace "fromJust is used here...1\n" (move_monsters_impl DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.delete coord_head (monsters dung_map)), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map))} coord_tail)
+                trace "fromJust is used here...1\n" (move_monsters_impl DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.delete coord_head (monsters dung_map)), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))} coord_tail)
             else
                 do
               --  putStrLn "Nobody died!\n"
-                trace "fromJust is used here...2\n" (move_monsters_impl DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.insert newpos (fromJust monst) (Map.delete coord_head (monsters dung_map))), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map))} coord_tail)
+                trace "fromJust is used here...2\n" (move_monsters_impl DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.insert newpos (fromJust monst) (Map.delete coord_head (monsters dung_map))), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))} coord_tail)
 
     select_coords :: [RoomData] -> [Int] -> (Int, Int)
     select_coords list_of_rooms rands = let
@@ -229,9 +256,9 @@ module EventLoop where
                                new_mons = Character {stats = Stats{hp=20, strength=5, skill=5, speed=10, luck=5, defense=5}, items=[WeaponTag Weapon{charges=46, weight=5, might=5, hit=90, crit=0, minrange=1, maxrange=1}], status=Status{currhp=20, condition=Healthy}}
                                in
                                trace ("Monster at " ++ show(mons_coords) ++ "\n")
-                               DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=(player(dung_map)), monsters=(Map.insert (mons_coords) (new_mons) (monsters(dung_map))), randomnums = (drop 4 (randomnums(dung_map))), floor_number = (floor_number(dung_map)), potions=(potions(dung_map))}
+                               DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=(player(dung_map)), monsters=(Map.insert (mons_coords) (new_mons) (monsters(dung_map))), randomnums = (drop 4 (randomnums(dung_map))), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))}
                             else
-                               DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=(player(dung_map)), monsters=(monsters(dung_map)), randomnums = (tail(randomnums(dung_map))), floor_number = (floor_number(dung_map)), potions=(potions(dung_map))}
+                               DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=(player(dung_map)), monsters=(monsters(dung_map)), randomnums = (tail(randomnums(dung_map))), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))}
 
     get_monster :: String -> DungeonMap -> (Character, (Int, Int))
     get_monster direction dung_map = let 
@@ -281,11 +308,11 @@ module EventLoop where
                                                                        if isNothing(monst) then
                                                                           do
             --                                                              putStrLn "The Monster died!!\n"
-                                                                          trace "fromJust is used here...7\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.delete coord_head (monsters dung_map)), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map))})
+                                                                          trace "fromJust is used here...7\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.delete coord_head (monsters dung_map)), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))})
                                                                        else 
                                                                           do
           --                                                                putStrLn "Nobody died..\n"
-                                                                          trace "fromJust is used here...8\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.insert newpos (fromJust monst) (Map.delete coord_head (monsters dung_map))), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map))})
+                                                                          trace "fromJust is used here...8\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.insert newpos (fromJust monst) (Map.delete coord_head (monsters dung_map))), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))})
                       | otherwise = move_monsters dung_map
 
     handle_wield_down dung_map
@@ -298,11 +325,11 @@ module EventLoop where
                                                                     if isNothing(monst) then
                                                                        do
         --                                                               putStrLn "The Monster died!!\n"
-                                                                       trace "fromJust is used here...9\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.delete coord_head (monsters dung_map)), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map))})
+                                                                       trace "fromJust is used here...9\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.delete coord_head (monsters dung_map)), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))})
                                                                     else
                                                                        do
       --                                                                 putStrLn "Nobody died..\n"
-                                                                       trace "fromJust is used here...10\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.insert newpos (fromJust monst) (Map.delete coord_head (monsters dung_map))), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map))})                                                                        
+                                                                       trace "fromJust is used here...10\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.insert newpos (fromJust monst) (Map.delete coord_head (monsters dung_map))), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))})                                                                        
                         | otherwise = move_monsters dung_map
 
     handle_wield_left dung_map
@@ -315,11 +342,11 @@ module EventLoop where
                                                                     if isNothing(monst) then
                                                                        do
     --                                                                   putStrLn "The Monster died!!\n"
-                                                                       trace "fromJust is used here...11\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.delete coord_head (monsters dung_map)), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map))})
+                                                                       trace "fromJust is used here...11\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.delete coord_head (monsters dung_map)), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))})
                                                                     else
                                                                        do
   --                                                                     putStrLn "Nobody died..\n"
-                                                                       trace "fromJust is used here...12\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.insert newpos (fromJust monst) (Map.delete coord_head (monsters dung_map))), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map))})
+                                                                       trace "fromJust is used here...12\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.insert newpos (fromJust monst) (Map.delete coord_head (monsters dung_map))), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))})
                         | otherwise = move_monsters dung_map
 
     handle_wield_right dung_map
@@ -332,11 +359,11 @@ module EventLoop where
                                                                       if isNothing(monst) then
                                                                          do
 --                                                                         putStrLn "The Monster died!!\n"
-                                                                         trace "fromJust is used here...13\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.delete coord_head (monsters dung_map)), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map))})
+                                                                         trace "fromJust is used here...13\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.delete coord_head (monsters dung_map)), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))})
                                                                       else
                                                                          do
 --                                                                         putStrLn "Nobody died..\n"
-                                                                         trace "fromJust is used here...14\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.insert newpos (fromJust monst) (Map.delete coord_head (monsters dung_map))), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map))})
+                                                                         trace "fromJust is used here...14\n" (move_monsters DungeonMap{dung_floor=dung_floor(dung_map),room_data=(room_data(dung_map)), path_data=path_data(dung_map),entry_point=entry_point(dung_map),exit_point=exit_point(dung_map),player=fromJust(playerpost),monsters=(Map.insert newpos (fromJust monst) (Map.delete coord_head (monsters dung_map))), randomnums=randSeq, floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))})
                          | otherwise = move_monsters dung_map
                          
     handle_quaff dung_map = let
@@ -345,8 +372,8 @@ module EventLoop where
                             if cur_remain > 0 then
                                let 
                                new_health = min ((currhp(status(player(dung_map))))+10) (hp(stats(player(dung_map))))
-                               player_mod = Character {stats=(stats(player(dung_map))), items=[WeaponTag (fromJust(getWeapon(items(player(dung_map))))), PotionTag Potion{effect=Heal, remain=cur_remain-1}], status=Status {currhp = new_health, condition=(condition(status(player(dung_map))))}}
+                               player_mod = Character {stats=(stats(player(dung_map))), items=(usePotion(items(player(dung_map)))), status=Status {currhp = new_health, condition=(condition(status(player(dung_map))))}}
                                in
-                               game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=player_mod, monsters=(monsters(dung_map)), randomnums = (drop 4 (randomnums(dung_map))), floor_number = (floor_number(dung_map)), potions=(potions(dung_map))}
+                               game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=player_mod, monsters=(monsters(dung_map)), randomnums = (drop 4 (randomnums(dung_map))), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))}
                             else
-                               game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=(player(dung_map)), monsters=(monsters(dung_map)), randomnums = (drop 4 (randomnums(dung_map))), floor_number = (floor_number(dung_map)), potions=(potions(dung_map))}
+                               game_loop DungeonMap {dung_floor = (dung_floor(dung_map)), room_data=(room_data(dung_map)), path_data=(path_data(dung_map)), entry_point = (entry_point(dung_map)), exit_point=(exit_point(dung_map)), player=(player(dung_map)), monsters=(monsters(dung_map)), randomnums = (drop 4 (randomnums(dung_map))), floor_number = (floor_number(dung_map)), potions=(potions(dung_map)), weapons=(weapons(dung_map))}

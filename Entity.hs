@@ -32,6 +32,16 @@ module Entity where
         if (charges weapon)==1
         then xs
         else (WeaponTag weapon{charges=((charges weapon)-1)}):xs
+        
+    usePotion :: [Item] -> [Item]
+    usePotion [] = []
+    usePotion ((WeaponTag x):xs) = (WeaponTag x):usePotion xs
+    usePotion ((PotionTag potion):xs) = (PotionTag potion{remain=((remain potion)-1)}):xs
+    
+    digPotion :: [Item] -> [Item]
+    digPotion [] = []
+    digPotion ((WeaponTag x):xs) = (WeaponTag x):digPotion xs
+    digPotion ((PotionTag potion):xs) = (PotionTag potion{remain=((remain potion)+1)}):xs
 
     attackspeed :: Character -> Int
     attackspeed charac = (speed (stats charac)) - (fromMaybe 0 (liftM weight (getWeapon (items charac))))

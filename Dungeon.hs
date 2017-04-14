@@ -268,3 +268,25 @@ module Dungeon where
                                                     
     get_potion_map :: [(Int, Int)] -> Map.Map (Int, Int) Potion
     get_potion_map p_list = Map.fromList (zip (p_list) (repeat(Potion{effect=Heal, remain=1})))
+    
+    get_weapons :: [RoomData] -> Int -> [Int] -> Map.Map (Int, Int) Potion -> ([(Int, Int)], [Int])
+    get_weapons list_of_rooms dnsty rands p_map = get_weapons_impl list_of_rooms dnsty rands [] p_map
+    
+    get_weapons_impl :: [RoomData] -> Int -> [Int] -> [(Int, Int)] -> Map.Map (Int, Int) Potion -> ([(Int, Int)], [Int])
+    get_weapons_impl _ 0 rands c_list p_map = (c_list, rands)
+    get_weapons_impl list_of_rooms dnsty rands c_list p_map = let
+                                                      room_select = (head(rands)) `rem` (length(list_of_rooms))
+                                                      selected_room = list_of_rooms!!(room_select)
+                                                      select_x = (up_left_x(selected_room)) + (rands!!1 `rem` ((down_right_x(selected_room)) - (up_left_x(selected_room))))
+                                                      select_y = (up_left_y(selected_room)) + (rands!!2 `rem` ((down_right_y(selected_room)) - (up_left_y(selected_room))))
+                                                      in
+                                                      if (make_decision (take 10 (drop 4 rands)) 5) then
+                                                         if Map.member (select_x, select_y) (p_map) then
+                                                            get_weapons_impl (list_of_rooms) (dnsty-1) (drop 13 rands) (c_list) (p_map)
+                                                         else 
+                                                            get_weapons_impl (list_of_rooms) (dnsty-1) (drop 13 rands) ((select_x, select_y) : c_list) (p_map)
+                                                      else 
+                                                         get_weapons_impl (list_of_rooms) (dnsty-1) (drop 13 rands) (c_list) (p_map)
+                                                         
+    get_weapon_map :: [(Int, Int)] -> Map.Map (Int, Int) Weapon
+    get_weapon_map w_list = Map.fromList (zip (w_list) (repeat(Weapon{charges=15, weight=2, might=2, hit=70, crit=0, minrange=1, maxrange=1})))
