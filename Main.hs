@@ -12,6 +12,7 @@ module Main where
     data Menu_Input = Play | Instructions | Exit_Game
 
     main = do
+           hSetBuffering stdin NoBuffering
            system "clear"
            putStrLn "Welcome to FEMD : RogueLike in Haskell\n1. Play\n2. Instructions\n3. Exit\nEnter the option to continue on the corresponding page\n"
            menu_input <- get_menu_input
