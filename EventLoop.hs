@@ -17,8 +17,11 @@ module EventLoop where
     makeLenses ''DungeonMap
     data Inputs = Quit | MLeft | MDown | MUp | MRight | Quaff | WieldLeft | WieldDown | WieldUp | WieldRight | Wait | Whatever
 
-    eventloop val pchar_init = do
-                           let rand_n = randomRs (0, maxBound::Int) (mkStdGen (2*val))
+    new_eventloop val pchar_init = do
+                                   let rand_n = randomRs (0, maxBound::Int) (mkStdGen (2*val))
+                                   eventloop rand_n pchar_init val
+
+    eventloop rand_n pchar_init val = do
                            let (n, lor) = place_rooms 25 25 10 rand_n
                            let entry = get_entry_point lor
                            let exit = get_exit_point lor
@@ -35,7 +38,7 @@ module EventLoop where
                            game_loop (DungeonMap (conv_floor_to_seq floor_4) lor all_p entry exit pchar_init Map.empty new_n val p_map w_map)
 
     game_loop dung_map
-                   |(dung_map ^. entry_point) == (dung_map ^. exit_point) = eventloop ((dung_map ^. floor_number)+1) (dung_map ^. player)
+                   |(dung_map ^. entry_point) == (dung_map ^. exit_point) = eventloop (dung_map ^. randomnums) (dung_map ^. player) ((dung_map ^. floor_number) + 1)
                    | otherwise = do
                             let new_dung_map = make_monster dung_map
                --          system "clear"
@@ -76,7 +79,7 @@ module EventLoop where
                               let floor_map = floor_display (dung_map ^. dung_floor)
                               let base_map = Data_Seq.update (snd $ dung_map ^. entry_point) (Data_Seq.update (fst $ dung_map ^. entry_point) "@" (Data_Seq.index floor_map (snd $ dung_map ^. entry_point))) floor_map
                               let monst_map = Map.foldrWithKey (\(row,col) _ basemap -> Data_Seq.update (col) (Data_Seq.update (row) "T" (Data_Seq.index basemap (col))) basemap) base_map (dung_map ^. monsters)
-                              let p_map = Map.foldrWithKey (\(row,col) _ basemap -> Data_Seq.update (col) (Data_Seq.update (row) "." (Data_Seq.index basemap (col))) basemap) monst_map (dung_map ^. potions)
+                              let p_map = Map.foldrWithKey (\(row,col) _ basemap -> Data_Seq.update (col) (Data_Seq.update (row) "P" (Data_Seq.index basemap (col))) basemap) monst_map (dung_map ^. potions)
                               let w_map = Map.foldrWithKey (\(row,col) _ basemap -> Data_Seq.update (col) (Data_Seq.update (row) "w" (Data_Seq.index basemap (col))) basemap) p_map (dung_map ^. weapons)
                               --putStrLn (temp_dis (monst_map))
                               putStrLn(Data_Seq.foldrWithIndex (\_ a b -> (Data_Seq.foldrWithIndex (\_ a b -> a++b) "" a)++"\n"++b) "\n" w_map)
@@ -363,7 +366,7 @@ module EventLoop where
                             in
                             if cur_remain > 0 then
                                let
-                               new_health = min ((dung_map ^. player ^. status ^. currhp)) (dung_map ^. player ^. stats ^. hp)
+                               new_health = min (10 + (dung_map ^. player ^. status ^. currhp)) (dung_map ^. player ^. stats ^. hp)
                                player_mod = dung_map ^. player & items %~ usePotion & (status . currhp) .~ new_health
                                in
                                game_loop (dung_map & player .~ player_mod & randomnums %~ (drop 4))
