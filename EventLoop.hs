@@ -25,7 +25,7 @@ module EventLoop where
 
     -- new_eventloop is called from the Main module only
     new_eventloop val pchar_init = do
-                                   let rand_n = randomRs (0, maxBound::Int) (mkStdGen (2*val))
+                                   let rand_n = randomRs (0, maxBound::Int) (mkStdGen val)
                                    eventloop rand_n pchar_init val
 
     -- Implicit eventloop that is called recursively on every new floor until game quits
@@ -268,7 +268,7 @@ module EventLoop where
 
     -- Function to generate monsters
     make_monster :: DungeonMap -> DungeonMap
-    make_monster dung_map = if (make_decision (take 10 (dung_map ^. randomnums)) 10) && (Map.null(dung_map ^. monsters)) then
+    make_monster dung_map = if (make_decision (take 10 (dung_map ^. randomnums)) 3) then
                                let
                                mons_coords = select_coords (dung_map ^. room_data) (take 3 (tail(dung_map ^. randomnums)))
                                new_mons = Character {_stats = Stats{_hp=20, _strength=5, _skill=5, _speed=10, _luck=5, _defense=5}, _items=[WeaponTag Weapon{_charges=46, _weight=5, _might=5, _hit=90, _crit=0, _minrange=1, _maxrange=1}], _status=Status{_currhp=20, _condition=Healthy}}
