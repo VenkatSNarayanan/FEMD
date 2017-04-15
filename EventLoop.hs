@@ -12,6 +12,7 @@ module EventLoop where
     import System.Process
     import qualified Data.Foldable as Data_Fold
     import Control.Lens
+    import Control.Exception
 
     data DungeonMap = DungeonMap { _dung_floor :: Data_Seq.Seq (Data_Seq.Seq Tile), _room_data :: [RoomData], _path_data :: [PathData], _entry_point :: (Int, Int), _exit_point :: (Int, Int), _player :: Character, _monsters :: Map.Map (Int,Int) Character, _randomnums :: [Int], _floor_number :: Int, _potions :: Map.Map (Int, Int) Potion, _weapons :: Map.Map (Int, Int) Weapon}
     makeLenses ''DungeonMap
@@ -103,7 +104,8 @@ module EventLoop where
                           move_monsters (dung_map & entry_point .~ (new_x, new_y) & player .~ player_mod & potions %~ (Map.delete (new_x, new_y)))
                        else if (Map.member (new_x, new_y) (dung_map ^. weapons)) then
                           do
-                          let new_weapon = fromJust (Map.lookup (new_x, new_y) (dung_map ^. weapons))
+                          let new_weapon_1 = (Map.lookup (new_x, new_y) (dung_map ^. weapons))
+                          let new_weapon = assert (isJust(new_weapon_1)) (fromJust(new_weapon_1))
                           let new_item_set = (dung_map ^. player ^. items) ++ [(WeaponTag (new_weapon))]
                           let player_mod = dung_map ^. player & items .~ new_item_set
                           move_monsters (dung_map & entry_point .~ (new_x,new_y) & player .~ player_mod & weapons %~ (Map.delete (new_x, new_y)))
@@ -120,7 +122,8 @@ module EventLoop where
                             move_monsters (dung_map & entry_point .~ (new_x, new_y) & player .~ player_mod & potions %~ (Map.delete (new_x, new_y)))
                          else if (Map.member (new_x, new_y) (dung_map ^. weapons)) then
                             do
-                            let new_weapon = fromJust (Map.lookup (new_x, new_y) (dung_map ^. weapons))
+                            let new_weapon_1 = (Map.lookup (new_x, new_y) (dung_map ^. weapons))
+                            let new_weapon = assert (isJust(new_weapon_1)) (fromJust(new_weapon_1))
                             let new_item_set = (dung_map ^. player ^. items) ++ [(WeaponTag (new_weapon))]
                             let player_mod = dung_map ^. player & items .~ new_item_set
                             move_monsters (dung_map & entry_point .~ (new_x,new_y) & player .~ player_mod & weapons %~ (Map.delete (new_x, new_y)))
@@ -137,7 +140,8 @@ module EventLoop where
                             move_monsters (dung_map & entry_point .~ (new_x, new_y) & player .~ player_mod & potions %~ (Map.delete (new_x, new_y)))
                          else if (Map.member (new_x, new_y) (dung_map ^. weapons)) then
                             do
-                            let new_weapon = fromJust (Map.lookup (new_x, new_y) (dung_map ^. weapons))
+                            let new_weapon_1 = (Map.lookup (new_x, new_y) (dung_map ^. weapons))
+                            let new_weapon = assert (isJust(new_weapon_1)) (fromJust(new_weapon_1))
                             let new_item_set = (dung_map ^. player ^. items) ++ [(WeaponTag (new_weapon))]
                             let player_mod = dung_map ^. player & items .~ new_item_set
                             move_monsters (dung_map & entry_point .~ (new_x,new_y) & player .~ player_mod & weapons %~ (Map.delete (new_x, new_y)))
@@ -154,7 +158,8 @@ module EventLoop where
                              move_monsters (dung_map & entry_point .~ (new_x, new_y) & player .~ player_mod & potions %~ (Map.delete (new_x, new_y)))
                           else if (Map.member (new_x, new_y) (dung_map ^. weapons)) then
                              do
-                             let new_weapon = fromJust (Map.lookup (new_x, new_y) (dung_map ^. weapons))
+                             let new_weapon_1 = (Map.lookup (new_x, new_y) (dung_map ^. weapons))
+                             let new_weapon = assert (isJust(new_weapon_1)) (fromJust(new_weapon_1))
                              let new_item_set = (dung_map ^. player ^. items) ++ [(WeaponTag (new_weapon))]
                              let player_mod = dung_map ^. player & items .~ new_item_set
                              move_monsters (dung_map & entry_point .~ (new_x,new_y) & player .~ player_mod & weapons %~ (Map.delete (new_x, new_y)))
@@ -205,7 +210,7 @@ module EventLoop where
     move_monsters_impl dung_map (coord_head:coord_tail) =
         do
             let playpos = dung_map ^. entry_point
-            let head_monster = (fromJust (Map.lookup coord_head (dung_map ^. monsters)))
+            let head_monster = assert (isJust(Map.lookup coord_head (dung_map ^. monsters))) (fromJust(Map.lookup coord_head (dung_map ^. monsters)))
             let monster_weapon = getWeapon (head_monster ^. items)
             let absvalue = (\a -> if (a<0) then (-a) else a)
             let monst_dist = (absvalue((fst playpos) - (fst coord_head))) + (absvalue((snd playpos) - (snd coord_head)))
@@ -232,11 +237,11 @@ module EventLoop where
             else if isNothing(monst) then
                 do
                 --putStrLn"The monster died!\n"
-                (move_monsters_impl (dung_map & player .~ (fromJust playerpost) & monsters %~ (Map.delete coord_head) & randomnums .~ randSeq) coord_tail)
+                (move_monsters_impl (dung_map & player .~ (assert (isJust(playerpost)) (fromJust(playerpost))) & monsters %~ (Map.delete coord_head) & randomnums .~ randSeq) coord_tail)
             else
                 do
               --  putStrLn "Nobody died!\n"
-                (move_monsters_impl (dung_map & player .~ (fromJust playerpost) & monsters %~ (\m -> (Map.insert newpos (fromJust monst) (Map.delete coord_head m))) & randomnums .~ randSeq) coord_tail)
+                (move_monsters_impl (dung_map & player .~ (assert (isJust(playerpost)) (fromJust(playerpost))) & monsters %~ (\m -> (Map.insert newpos (assert(isJust(monst)) (fromJust(monst))) (Map.delete coord_head m))) & randomnums .~ randSeq) coord_tail)
 
     select_coords :: [RoomData] -> [Int] -> (Int, Int)
     select_coords list_of_rooms rands = let
@@ -268,13 +273,13 @@ module EventLoop where
                                     on_bottom = ((fst(player_pos)), (snd(player_pos))+1)
                                     in
                                     if direction == "up" then
-                                       ((fromJust (Map.lookup (on_top) (dung_map ^. monsters))), (on_top))
+                                       assert (isJust(Map.lookup (on_top) (dung_map ^. monsters))) ((fromJust (Map.lookup (on_top) (dung_map ^. monsters))), (on_top))
                                     else if direction == "down" then
-                                       ((fromJust (Map.lookup (on_bottom) (dung_map ^. monsters))), (on_bottom))
+                                       assert(isJust(Map.lookup (on_bottom) (dung_map ^. monsters))) ((fromJust (Map.lookup (on_bottom) (dung_map ^. monsters))), (on_bottom))
                                     else if direction == "left" then
-                                       ((fromJust (Map.lookup (on_left) (dung_map ^. monsters))), (on_left))
+                                       assert(isJust(Map.lookup (on_left) (dung_map ^. monsters))) ((fromJust (Map.lookup (on_left) (dung_map ^. monsters))), (on_left))
                                     else
-                                       ((fromJust (Map.lookup (on_right) (dung_map ^. monsters))), (on_right))
+                                       assert(isJust(Map.lookup (on_right) (dung_map ^. monsters))) ((fromJust (Map.lookup (on_right) (dung_map ^. monsters))), (on_right))
 
     check_if_monster_nearby :: String -> DungeonMap -> Bool
     check_if_monster_nearby direction dung_map = let
@@ -303,11 +308,14 @@ module EventLoop where
                                                                        if isNothing(monst) then
                                                                           do
             --                                                              putStrLn "The Monster died!!\n"
-                                                                          (move_monsters (dung_map & player .~ fromJust(playerpost) & monsters %~ (Map.delete coord_head) & randomnums .~ randSeq))
+                                                                          (move_monsters (dung_map & player .~ (assert(isJust(playerpost)) (fromJust(playerpost)))  & monsters %~ (Map.delete coord_head) & randomnums .~ randSeq))
+                                                                       else if isNothing(playerpost) then
+                                                                          do
+                                                                           putStrLn "Sorry, you get KOed!"
                                                                        else
                                                                           do
           --                                                                putStrLn "Nobody died..\n"
-                                                                          (move_monsters (dung_map & player .~ fromJust(playerpost) & monsters %~ (\m -> (Map.insert newpos (fromJust monst) (Map.delete coord_head m))) & randomnums .~ randSeq ))
+                                                                          (move_monsters (dung_map & player .~ (assert(isJust(playerpost)) (fromJust(playerpost))) & monsters %~ (\m -> (Map.insert newpos (assert(isJust(monst)) (fromJust(monst))) (Map.delete coord_head m))) & randomnums .~ randSeq ))
                       | otherwise = move_monsters dung_map
 
     handle_wield_down dung_map
@@ -320,11 +328,14 @@ module EventLoop where
                                                                     if isNothing(monst) then
                                                                        do
         --                                                               putStrLn "The Monster died!!\n"
-                                                                       (move_monsters (dung_map & player .~ fromJust(playerpost) & monsters %~ (Map.delete coord_head) & randomnums .~ randSeq))
+                                                                       (move_monsters (dung_map & player .~ (assert(isJust(playerpost)) (fromJust(playerpost))) & monsters %~ (Map.delete coord_head) & randomnums .~ randSeq))
+                                                                    else if isNothing(playerpost) then
+                                                                       do
+                                                                         putStrLn "Sorry, you get KOed!"
                                                                     else
                                                                        do
       --                                                                 putStrLn "Nobody died..\n"
-                                                                       (move_monsters (dung_map & player .~ fromJust(playerpost) & monsters %~ (\m -> (Map.insert newpos (fromJust monst) (Map.delete coord_head m))) & randomnums .~ randSeq ))
+                                                                       (move_monsters (dung_map & player .~ (assert(isJust(playerpost)) (fromJust(playerpost))) & monsters %~ (\m -> (Map.insert newpos (assert(isJust(monst)) (fromJust(monst))) (Map.delete coord_head m))) & randomnums .~ randSeq ))
                         | otherwise = move_monsters dung_map
 
     handle_wield_left dung_map
@@ -337,11 +348,14 @@ module EventLoop where
                                                                     if isNothing(monst) then
                                                                        do
         --                                                               putStrLn "The Monster died!!\n"
-                                                                       (move_monsters (dung_map & player .~ fromJust(playerpost) & monsters %~ (Map.delete coord_head) & randomnums .~ randSeq))
+                                                                       (move_monsters (dung_map & player .~ (assert(isJust(playerpost)) (fromJust(playerpost))) & monsters %~ (Map.delete coord_head) & randomnums .~ randSeq))
+                                                                    else if isNothing(playerpost) then
+                                                                       do
+                                                                         putStrLn "Sorry, you get KOed!"
                                                                     else
                                                                        do
       --                                                                 putStrLn "Nobody died..\n"
-                                                                       (move_monsters (dung_map & player .~ fromJust(playerpost) & monsters %~ (\m -> (Map.insert newpos (fromJust monst) (Map.delete coord_head m))) & randomnums .~ randSeq ))
+                                                                       (move_monsters (dung_map & player .~ (assert(isJust(playerpost)) (fromJust(playerpost))) & monsters %~ (\m -> (Map.insert newpos (assert(isJust(monst)) (fromJust(monst))) (Map.delete coord_head m))) & randomnums .~ randSeq ))
                         | otherwise = move_monsters dung_map
 
     handle_wield_right dung_map
@@ -354,11 +368,14 @@ module EventLoop where
                                                                       if isNothing(monst) then
                                                                          do
           --                                                               putStrLn "The Monster died!!\n"
-                                                                         (move_monsters (dung_map & player .~ fromJust(playerpost) & monsters %~ (Map.delete coord_head) & randomnums .~ randSeq))
+                                                                         (move_monsters (dung_map & player .~ (assert(isJust(playerpost)) (fromJust(playerpost))) & monsters %~ (Map.delete coord_head) & randomnums .~ randSeq))
+                                                                      else if isNothing(playerpost) then
+                                                                         do
+                                                                           putStrLn "Sorry, you get KOed!"
                                                                       else
                                                                          do
         --                                                                 putStrLn "Nobody died..\n"
-                                                                         (move_monsters (dung_map & player .~ fromJust(playerpost) & monsters %~ (\m -> (Map.insert newpos (fromJust monst) (Map.delete coord_head m))) & randomnums .~ randSeq ))
+                                                                         (move_monsters (dung_map & player .~ (assert(isJust(playerpost)) (fromJust(playerpost))) & monsters %~ (\m -> (Map.insert newpos (assert(isJust(monst)) (fromJust(monst))) (Map.delete coord_head m))) & randomnums .~ randSeq ))
                          | otherwise = move_monsters dung_map
 
     handle_quaff dung_map = let
