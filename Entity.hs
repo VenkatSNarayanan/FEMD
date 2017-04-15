@@ -1,105 +1,114 @@
+{-# LANGUAGE TemplateHaskell#-}
 module Entity where
     import Control.Monad
     import Data.Maybe
     import Control.Exception
     import Control.Arrow
-    import Debug.Trace
+    import Control.Lens
 
-    data Weapon = Weapon {charges :: Int, weight :: Int, might::Int, hit:: Int, crit:: Int, minrange :: Int, maxrange :: Int} deriving(Show)
-    data PotionEffect = Heal | Restore | Poison deriving (Show)
-    data Condition = Healthy | Poisoned deriving (Show)
-    data Potion = Potion {effect :: PotionEffect, remain :: Int} deriving (Show)
-    data Item = WeaponTag Weapon | PotionTag Potion deriving(Show)
-    --data Item = (Right Weapon) | (Left Potion) deriving (Show)
-    data Stats = Stats { hp :: Int, strength :: Int,skill :: Int, speed :: Int, luck:: Int, defense :: Int} deriving (Show)
-    data Status = Status { currhp :: Int, condition :: Condition} deriving (Show)
-    data Character = Character {stats:: Stats, items :: [Item], status :: Status} deriving (Show)
+    data Weapon = Weapon {_charges :: Int, _weight :: Int, _might::Int, _hit:: Int, _crit:: Int, _minrange :: Int, _maxrange :: Int}
+    instance Show Weapon where
+       show Weapon {_charges=charges, _weight=weight, _might=might, _hit=hit, _crit=crit, _minrange=minrange, _maxrange=maxrange} = "\nWeapon : Charges = " ++ show(charges) ++ "\tWeight = " ++ show(weight) ++ "\tMight = " ++ show(might) ++ "\tHit = " ++ show(hit) ++ "\tCrit = " ++ show(crit) ++ "\tMinimum Range = " ++ show(minrange) ++ "\tMaximum Range = " ++ show(maxrange) ++ "\n"
+    makeLenses ''Weapon
+    data Potion = Potion {_remain :: Int}
+    makeLenses ''Potion
+    instance Show Potion where
+       show potion = "\nPotion : Remaining = " ++ show(potion ^. remain) ++ "\n"
+    data Item = WeaponTag Weapon | PotionTag Potion
+    instance Show Item where
+       show (WeaponTag weapon) = show(weapon)
+       show (PotionTag potion) = show(potion)
+    data Stats = Stats {_hp :: Int, _strength :: Int,_skill :: Int, _speed :: Int, _luck:: Int, _defense :: Int} deriving (Show)
+    makeLenses ''Stats
+    data Status = Status { _currhp :: Int} deriving (Show)
+    makeLenses ''Status
+    data Character = Character {_stats:: Stats, _items :: [Item], _status :: Status}
+    makeLenses ''Character
+    instance Show Character where
+       show charac = "Your original stats:\nHP=" ++ show(charac ^. (stats . hp)) ++ "\tStrength=" ++ show(charac ^. (stats . strength)) ++ "\tSkill=" ++ show(charac ^. (stats . skill)) ++ "\tSpeed=" ++ show(charac ^. (stats . speed)) ++ "\tLuck=" ++ show(charac ^. (stats . luck)) ++ "\tDefense=" ++ show(charac ^. (stats.defense))++ "\nInventory:\n" ++ show(charac ^. items) ++ "\nCurrent Status: \nCurrent HP=" ++ show(charac ^. (status . currhp)) ++ "\n"
 
     getWeapon :: [Item] -> Maybe Weapon
-    getWeapon [] = Nothing
-    getWeapon ((PotionTag _):xs) = getWeapon xs
-    getWeapon ((WeaponTag weapon) :xs) = Just (weapon)
-    
+    getWeapon items = foldr (\item rest -> case item of (WeaponTag w) -> Just (w)
+                                                        (PotionTag _) -> rest) Nothing items
     getPotion :: [Item] -> Maybe Potion
-    getPotion [] = Nothing
-    getPotion ((WeaponTag _):xs) = getPotion xs
-    getPotion ((PotionTag potion) :xs) = Just (potion)
+    getPotion items = foldr (\item rest -> case item of (PotionTag p) -> Just (p)
+                                                        (WeaponTag _) -> rest) Nothing items
 
     useWeapon :: [Item] -> [Item]
     useWeapon [] = []
     useWeapon ((PotionTag x):xs) = (PotionTag x):useWeapon xs
     useWeapon ((WeaponTag weapon):xs) =
-        if (charges weapon)==1
+        if (_charges weapon)==1
         then xs
-        else (WeaponTag weapon{charges=((charges weapon)-1)}):xs
-        
+        else (WeaponTag ((weapon) & charges -~1)):xs
+
     usePotion :: [Item] -> [Item]
     usePotion [] = []
     usePotion ((WeaponTag x):xs) = (WeaponTag x):usePotion xs
-    usePotion ((PotionTag potion):xs) = (PotionTag potion{remain=((remain potion)-1)}):xs
-    
+    usePotion ((PotionTag potion):xs) = (PotionTag ((potion) & remain -~1)):xs
+
     digPotion :: [Item] -> [Item]
     digPotion [] = []
     digPotion ((WeaponTag x):xs) = (WeaponTag x):digPotion xs
-    digPotion ((PotionTag potion):xs) = (PotionTag potion{remain=((remain potion)+1)}):xs
-
+    digPotion ((PotionTag potion):xs) = (PotionTag ((potion) & remain +~1)):xs
     attackspeed :: Character -> Int
-    attackspeed charac = (speed (stats charac)) - (fromMaybe 0 (liftM weight (getWeapon (items charac))))
+    attackspeed charac = (charac ^. (stats . speed)) - (fromMaybe 0 (liftM (view weight) (getWeapon (charac ^. items))))
 
     hitrate :: Character -> Int
-    hitrate charac = (2 * (skill (stats charac))) + ((luck (stats charac)) `div` 2) + (fromMaybe 0 (liftM hit (getWeapon (items charac))))
+    hitrate charac = (2 * (charac ^. (stats . skill))) + ((charac ^. (stats . luck)) `div` 2) + (fromMaybe 0 (liftM (view hit) (getWeapon (charac ^. items))))
 
     evaderate :: Character -> Int
-    evaderate charac = (2 * (speed (stats charac))) + (luck (stats charac))
+    evaderate charac = (2 * (charac ^. (stats . speed))) + (charac ^. (stats . luck))
 
     inRange :: Int -> Int -> Int -> Bool
     inRange a l u = (a >= l) && (a <= u)
 
     combat :: Character -> Character -> Int -> [Int] -> (Maybe Character,Maybe Character,[Int])
-    combat (Character {stats=stats1,items=items1,status=status1}) (Character {stats=stats2,items=items2,status=status2}) range randomstream =
-        let weapon1 = trace "Just entered combat!!!\n" (getWeapon items1)
+    combat p1 p2 range randomstream =
+        let weapon1 = getWeapon items1
             weapon2 = getWeapon items2
-            p1 = trace (show(Character {stats=stats1,items=items1,status=status1}) ++ "\n") Character {stats=stats1,items=items1,status=status1}
-            p2 = trace (show(Character {stats=stats2,items=items2,status=status2}) ++ "\n") (Character {stats=stats2,items=items2,status=status2})
+            stats1 = p1 ^. stats
+            items1 = p1 ^. items
+            status1 = p1 ^. status
+            stats2 = p2 ^. stats
+            items2 = p2 ^. items
+            status2 = p2 ^. status
             as1 = attackspeed p1
             as2 = attackspeed p2
             hitrate1 = hitrate p1
             evaderate1 = evaderate p1
             hitrate2 = hitrate p2
             evaderate2 = evaderate p2
-            ishit1 = fromMaybe False (weapon1 >> (Just (hitrate1-evaderate2)) >>=
-                (\hitrate ->
-                    if (hitrate < head (randomstream))
-                    then Just False
-                    else Just True))
-            strstate1 = (trace ("Attacker 1 Hit? " ++ (show(ishit1)) ++ "\n"))
-                        (tail randomstream)
+            ishit1 = fromMaybe False (liftM (\hitrate ->
+                if (hitrate < head (randomstream))
+                then False
+                else True) (weapon1 >> (Just (hitrate1-evaderate2))))
+            strstate1 = tail randomstream
             dmg1 = max 0 (
                 if ishit1
-                then ((strength stats1)-(defense stats2)+(fromMaybe 0 (liftM might weapon1)))
+                then ((stats1 ^. strength)-(stats2 ^. defense)+(fromMaybe 0 (liftM (view might) weapon1)))
                 else 0)
             survive1 =
-                if dmg1 >= (currhp status2)
+                if dmg1 >= (status2 ^. currhp)
                 then False
                 else True
             ishit2 =
-                if (survive1 && (fromMaybe False ((getWeapon (items p2))>>=(\weapon -> Just (inRange range (minrange weapon) (maxrange weapon))))))
-                then (fromMaybe False (weapon2 >> (Just (hitrate2-evaderate1)) >>= (\hitrate ->
+                if (survive1 && (fromMaybe False ((liftM (\weapon -> inRange range (weapon ^. minrange) (weapon ^. maxrange))) (getWeapon (p2 ^. items)))))
+                then (fromMaybe False ((liftM (\hitrate ->
                     if (hitrate < head (strstate1))
-                    then Just False
-                    else Just True)))
+                    then False
+                    else True)) (weapon2>>(Just (hitrate2-evaderate1)))))
                 else False
             strstate2 =
-                (trace ("Attacker 2 Hit? " ++ (show(ishit2)) ++ "\n"))
-                (if (survive1)
+                if (survive1)
                 then tail(strstate1)
-                else strstate1)
+                else strstate1
             dmg2 = max 0 (
                 if ishit2
-                then ((strength stats2)-(defense stats1)+(fromMaybe 0 (liftM might weapon1)))
+                then ((stats2 ^. strength)-(stats1 ^. defense)+(fromMaybe 0 (liftM (view might) weapon1)))
                 else 0)
             survive2 =
-                if dmg2 >= (currhp status2)
+                if dmg2 >= (status2 ^. currhp)
                 then False
                 else True
             weaponuse1 =
@@ -110,19 +119,17 @@ module Entity where
                 if ishit2
                 then useWeapon items2
                 else items2
-            currhp1 = (currhp status1)-dmg2
-            currhp2 = (currhp status2)-dmg1
-            cond1 = condition status1
-            cond2 = condition status2
-            newstatus1 = Status {currhp=currhp1,condition=cond1}
-            newstatus2 = Status {currhp=currhp2,condition=cond2}
+            currhp1 = (status1 ^. currhp)-dmg2
+            currhp2 = (status2 ^. currhp)-dmg1
+            newstatus1 = status1 & currhp .~ currhp1
+            newstatus2 = status2 & currhp .~ currhp2
             in
                 (
                 if (currhp1 > 0)
-                then Just (Character {stats=stats1,items=weaponuse1,status=newstatus1})
+                then Just (p1 & items .~ weaponuse1 & status .~ newstatus1)
                 else (Nothing),
                 if (currhp2 > 0)
-                then Just ((Character {stats=stats2,items=weaponuse2,status=newstatus2}))
+                then Just (p2 & items .~ weaponuse2 & status .~ newstatus2)
                 else (Nothing),
-                trace "going to exit combat!!\n"strstate2
+                strstate2
                 )

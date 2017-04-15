@@ -1,5 +1,7 @@
+{-# LANGUAGE TemplateHaskell#-}
 module Dungeon where
     import Control.Monad
+    import Control.Lens
     import qualified Data.Sequence as Data_Seq
     import qualified Data.Map.Strict as Map
     import Entity
@@ -10,8 +12,8 @@ module Dungeon where
     -- How each tile should be displayed
     instance Show Tile where
        show Floor = " "
-       show Room = "R"
-       show Path = "P"
+       show Room = "."
+       show Path = "."
        show Exit = "X"
 
     -- Directions. These are meant for traversing the Rooms (internally). Could be one of North, South, East or None
@@ -19,20 +21,14 @@ module Dungeon where
 
     -- RoomData type. All rooms are rectangular. This Data Type has the top left and bottom right coordinates with the centroid of the
     -- Room
-    data RoomData = RoomData {up_left_x :: Int, up_left_y :: Int, down_right_x :: Int, down_right_y :: Int, x_centre :: Int, y_centre :: Int}
-
-    -- Display each room (again for internal purposes)
-    instance Show RoomData where
-       show RoomData {up_left_x = x1, up_left_y = y1, down_right_x = x2, down_right_y = y2, x_centre = xc, y_centre = yc} = "[(" ++ show x1 ++ "," ++ show y1 ++ ");(" ++ show x2 ++ "," ++ show y2 ++ ");(" ++ show xc ++ "," ++ show yc ++ ")]\n"
+    data RoomData = RoomData {_up_left_x :: Int, _up_left_y :: Int, _down_right_x :: Int, _down_right_y :: Int, _x_centre :: Int, _y_centre :: Int}
+    makeLenses ''RoomData
 
     -- PathData type. All paths are straight lines.
     -- There might be bends in the path. These bends are right-angled
     -- The path is characterized by the starting location and direction, ending location and 1 bend if any.
-    data PathData = PathData {start_x :: Int, start_y :: Int, start_dir :: Direction, end_x :: Int, end_y :: Int, bend_x :: Int, bend_y :: Int, bend_dir :: Direction}
-
-    -- Display each path (again for internal purposes)
-    instance Show PathData where
-       show PathData {start_x = x1, start_y = y1, start_dir = s_direct, end_x = x2, end_y = y2, bend_x = xb, bend_y = yb, bend_dir = b_direct} = "(" ++ show x1 ++ "," ++ show y1 ++ ") to (" ++ show x2 ++ "," ++ show y2 ++ ") with bend " ++ show b_direct ++ " at (" ++ show xb ++ "," ++ show yb ++ ") starting " ++ show s_direct ++ "\n"
+    data PathData = PathData {_start_x :: Int, _start_y :: Int, _start_dir :: Direction, _end_x :: Int, _end_y :: Int, _bend_x :: Int, _bend_y :: Int, _bend_dir :: Direction}
+    makeLenses ''PathData
 
     -- Driver function to build rooms for a given set of parameters.
     -- Parameters include length and breadth of the floor.
@@ -43,13 +39,13 @@ module Dungeon where
     build_room :: Int -> Int -> Int -> Int -> RoomData
     build_room x1 y1 x2 y2 =
                 if ((x1 <= x2) && (y1 <= y2)) then
-                    RoomData {up_left_x = x1, up_left_y = y1, down_right_x = x2, down_right_y = y2, x_centre = (((x1+x2) `div` 2) + ((x1+x2) `rem` 2)), y_centre = (((y1+y2) `div` 2) + ((y1+y2) `rem` 2))}
+                    RoomData {_up_left_x = x1, _up_left_y = y1, _down_right_x = x2, _down_right_y = y2, _x_centre = (((x1+x2) `div` 2) + ((x1+x2) `rem` 2)), _y_centre = (((y1+y2) `div` 2) + ((y1+y2) `rem` 2))}
                 else if ((x1 <= x2) && (y1 > y2)) then
-                    RoomData {up_left_x = x1, up_left_y = y2, down_right_x = x2, down_right_y = y1, x_centre = (((x1+x2) `div` 2) + ((x1+x2) `rem` 2)), y_centre = (((y1+y2) `div` 2) + ((y1+y2) `rem` 2))}
+                    RoomData {_up_left_x = x1, _up_left_y = y2, _down_right_x = x2, _down_right_y = y1, _x_centre = (((x1+x2) `div` 2) + ((x1+x2) `rem` 2)), _y_centre = (((y1+y2) `div` 2) + ((y1+y2) `rem` 2))}
                 else if ((x1 > x2) && (y1 <= y2)) then
-                    RoomData {up_left_x = x2, up_left_y = y1, down_right_x = x1, down_right_y = y2, x_centre = (((x1+x2) `div` 2) + ((x1+x2) `rem` 2)) , y_centre = (((y1+y2) `div` 2) + ((y1+y2) `rem` 2))}
+                    RoomData {_up_left_x = x2, _up_left_y = y1, _down_right_x = x1, _down_right_y = y2, _x_centre = (((x1+x2) `div` 2) + ((x1+x2) `rem` 2)) , _y_centre = (((y1+y2) `div` 2) + ((y1+y2) `rem` 2))}
                 else
-                    RoomData {up_left_x = x2, up_left_y = y2, down_right_x = x1, down_right_y = y1, x_centre = (((x1+x2) `div` 2) + ((x1+x2) `rem` 2)), y_centre = (((y1+y2) `div` 2) + ((y1+y2) `rem` 2))}
+                    RoomData {_up_left_x = x2, _up_left_y = y2, _down_right_x = x1, _down_right_y = y1, _x_centre = (((x1+x2) `div` 2) + ((x1+x2) `rem` 2)), _y_centre = (((y1+y2) `div` 2) + ((y1+y2) `rem` 2))}
 
     -- This function feeds the values for a room to build_room
     new_build_room :: Int -> Int -> Int -> Int -> Int -> Int -> RoomData
@@ -69,9 +65,9 @@ module Dungeon where
     -- Checks if a pair of rooms can co-exist
     check_overlap :: RoomData -> RoomData -> Bool
     check_overlap room1 room2 =
-        if (((up_left_x room1) > (down_right_x room2)) || ((up_left_x room2) > (down_right_x room1))) then
+        if (((room1 ^. up_left_x) > (room2 ^. down_right_x)) || ((room2 ^. up_left_x) > (room1 ^. down_right_x))) then
                 True
-            else if (((up_left_y room1) > (down_right_y room2)) || ((up_left_y room2) > (down_right_y room1))) then
+            else if (((room1 ^. up_left_y) > (room2 ^. down_right_y)) || ((room2 ^. up_left_y) > (room1 ^. down_right_y))) then
                 True
             else
                 False
@@ -100,39 +96,39 @@ module Dungeon where
     sort_all_rooms :: [RoomData] -> [RoomData]
     sort_all_rooms [] = []
     sort_all_rooms (x:xs) = (sort_all_rooms (left_part)) ++ (x : sort_all_rooms (right_part)) where
-                    left_part = [room | room <- xs, (x_centre room) <= (x_centre x)]
-                    right_part = [room | room <- xs, (x_centre room) > (x_centre x)]
+                    left_part = [room | room <- xs, (room ^. x_centre) <= (x ^. x_centre)]
+                    right_part = [room | room <- xs, (room ^. x_centre) > (x ^. x_centre)]
 
 
     -- Function to build a path between any two rooms
     make_path :: (RoomData, RoomData) -> PathData
     make_path (room1, room2)
-                           | (x_centre(room1) == x_centre(room2)) = if (y_centre(room1) < y_centre(room2)) then
-                                                                       PathData {start_x = x_centre(room1), start_y = down_right_y(room1), start_dir = East, end_x = x_centre(room2), end_y = up_left_y(room2), bend_x = x_centre(room1), bend_y = down_right_y(room1), bend_dir = South}
+                           | (room1 ^. x_centre == room2 ^. x_centre) = if (room1 ^. y_centre < room2 ^. y_centre) then
+                                                                       PathData {_start_x = room1 ^. x_centre, _start_y = room1 ^. down_right_y, _start_dir = East, _end_x = room2 ^. x_centre, _end_y = room2 ^. up_left_y, _bend_x = room1 ^. x_centre, _bend_y = room1 ^. down_right_y, _bend_dir = South}
                                                                     else
-                                                                       PathData {start_x = x_centre(room1), start_y = down_right_y(room1), start_dir = East, end_x = x_centre(room2), end_y = up_left_y(room2), bend_x = x_centre(room1), bend_y = down_right_y(room1), bend_dir = North}
+                                                                       PathData {_start_x = room1 ^. x_centre, _start_y = room1 ^. down_right_y, _start_dir = East, _end_x = room2 ^. x_centre, _end_y = room2 ^. up_left_y, _bend_x = room1 ^. x_centre, _bend_y = room1 ^. down_right_y, _bend_dir = North}
 
-                           | (y_centre(room1) == y_centre(room2)) = PathData {start_x = down_right_x(room1), start_y = y_centre(room1), start_dir = East, end_x = up_left_x(room2), end_y = y_centre(room2), bend_x = (0-1), bend_y = (0-1), bend_dir = None}
+                           | (room1 ^. y_centre == room2 ^. y_centre) = PathData {_start_x = room1 ^. down_right_x, _start_y = room1 ^. y_centre, _start_dir = East, _end_x = room2 ^. up_left_x, _end_y = room2 ^. y_centre, _bend_x = (0-1), _bend_y = (0-1), _bend_dir = None}
 
-                           | (y_centre(room1) > y_centre(room2)) = if (down_right_y(room2) < y_centre(room1)) then
-                                                                      PathData {start_x = down_right_x(room1), start_y = y_centre(room1), start_dir = East, end_x = x_centre(room2), end_y = down_right_y(room2), bend_x = x_centre(room2), bend_y = y_centre(room1), bend_dir = North}
-
-                                                                   else
-                                                                      if (up_left_y(room1) > y_centre(room2)) then
-                                                                         PathData {start_x = x_centre(room1), start_y = up_left_y(room1), start_dir = North, end_x = up_left_x(room2), end_y = y_centre(room2), bend_x = x_centre(room1), bend_y = y_centre(room2), bend_dir = East}
-
-                                                                      else
-                                                                         PathData {start_x = down_right_x(room1), start_y = ((down_right_y(room2) + down_right_y(room1)) `div` 2), start_dir = East, end_x = x_centre(room2), end_y = down_right_y(room2), bend_x = x_centre(room2), bend_y = ((down_right_y(room2) + down_right_y(room1)) `div` 2), bend_dir = North}
-
-                           | (y_centre(room2) > y_centre(room1)) = if (up_left_y(room2) > y_centre(room1)) then
-                                                                      PathData {start_x = up_left_x(room1), start_y = y_centre(room1), start_dir = East, end_x = x_centre(room2), end_y = up_left_y(room2), bend_x = x_centre(room2), bend_y = y_centre(room1), bend_dir = South}
+                           | (room1 ^. y_centre > room2 ^. y_centre) = if (room2 ^. down_right_y < room1 ^. y_centre) then
+                                                                      PathData {_start_x = room1 ^. down_right_x, _start_y = room1 ^. y_centre, _start_dir = East, _end_x = room2 ^. x_centre, _end_y = room2 ^. down_right_y, _bend_x = room2 ^. x_centre, _bend_y = room1 ^. y_centre, _bend_dir = North}
 
                                                                    else
-                                                                      if (down_right_y(room1) < y_centre(room2)) then
-                                                                         PathData {start_x = x_centre(room1), start_y = down_right_y(room1), start_dir = South, end_x = down_right_x(room2), end_y = y_centre(room2), bend_x = x_centre(room1), bend_y = y_centre(room2), bend_dir = East}
+                                                                      if (room1 ^. up_left_y > room2 ^. y_centre) then
+                                                                         PathData {_start_x = room1 ^. x_centre, _start_y = room1 ^. up_left_y, _start_dir = North, _end_x = room2 ^. up_left_x, _end_y = room2 ^. y_centre, _bend_x = room1 ^. x_centre, _bend_y = room2 ^. y_centre, _bend_dir = East}
 
                                                                       else
-                                                                         PathData {start_x = up_left_x(room1), start_y = ((up_left_y(room2) + up_left_y(room1)) `div` 2), start_dir = East, end_x = x_centre(room2), end_y = up_left_y(room2), bend_x = x_centre(room2), bend_y = ((up_left_y(room2) + up_left_y(room1)) `div` 2), bend_dir = South}
+                                                                         PathData {_start_x = room1 ^. down_right_x, _start_y = ((room2 ^. down_right_y + room1 ^. down_right_y) `div` 2), _start_dir = East, _end_x = room2 ^. x_centre, _end_y = room2 ^. down_right_y, _bend_x = room2 ^. x_centre, _bend_y = ((room2 ^. down_right_y + room1 ^. down_right_y) `div` 2), _bend_dir = North}
+
+                           | (room2 ^. y_centre > room1 ^. y_centre) = if (room2 ^. up_left_y > room1 ^. y_centre) then
+                                                                      PathData {_start_x = room1 ^. up_left_x, _start_y = room1 ^. y_centre, _start_dir = East, _end_x = room2 ^. x_centre, _end_y = room2 ^. up_left_y, _bend_x = room2 ^. x_centre, _bend_y = room1 ^. y_centre, _bend_dir = South}
+
+                                                                   else
+                                                                      if (room1 ^. down_right_y < room2 ^. y_centre) then
+                                                                         PathData {_start_x = room1 ^. x_centre, _start_y = room1 ^. down_right_y, _start_dir = South, _end_x = room2 ^. down_right_x, _end_y = room2 ^. y_centre, _bend_x = room1 ^. x_centre, _bend_y = room2 ^. y_centre, _bend_dir = East}
+
+                                                                      else
+                                                                         PathData {_start_x = room1 ^. up_left_x, _start_y = ((room2 ^. up_left_y + room1 ^. up_left_y) `div` 2), _start_dir = East, _end_x = room2 ^. x_centre, _end_y = room2 ^. up_left_y, _bend_x = room2 ^. x_centre, _bend_y = ((room2 ^. up_left_y + room1 ^. up_left_y) `div` 2), _bend_dir = South}
 
     -- Driver function to build paths between all rooms
     make_all_paths :: [RoomData] -> [PathData]
@@ -177,12 +173,12 @@ module Dungeon where
     -- Implicit function to modify the floor based on the parameters of one room
     floor_room_mod :: RoomData -> [[Tile]] -> Tile -> [[Tile]]
     floor_room_mod my_room cur_floor new_tile = let
-                                                leave_before = up_left_y my_room
-                                                leave_after = down_right_y my_room
+                                                leave_before = my_room ^. up_left_y
+                                                leave_after = my_room ^. down_right_y
                                                 (above_part, unchange_after) = splitAt (leave_after+1) cur_floor
                                                 (unchange_before, change_floor) = splitAt (leave_before) above_part
-                                                start_x = up_left_x my_room
-                                                end_x = down_right_x my_room
+                                                start_x = my_room ^. up_left_x
+                                                end_x = my_room ^. down_right_x
                                                 in
                                                 unchange_before ++ (floor_rows_mod start_x end_x change_floor new_tile) ++ unchange_after
 
@@ -198,15 +194,15 @@ module Dungeon where
 
     -- Implicit function to convert a path into a list of 1 or 2 rooms depending upon whether a bend exists or not
     convert_path_to_room :: PathData -> [RoomData]
-    convert_path_to_room cur_path = if (bend_dir(cur_path) == None) then
+    convert_path_to_room cur_path = if (cur_path ^. bend_dir == None) then
                                        let
-                                       room1 = build_room (start_x(cur_path)) (start_y(cur_path)) (end_x(cur_path)) (end_y(cur_path))
+                                       room1 = build_room (cur_path ^. start_x) (cur_path ^. start_y) (cur_path ^. end_x) (cur_path ^. end_y)
                                        in
                                        (room1 : [])
                                     else
                                        let
-                                       room1 = build_room (start_x(cur_path)) (start_y(cur_path)) (bend_x(cur_path)) (bend_y(cur_path))
-                                       room2 = build_room (end_x(cur_path)) (end_y(cur_path)) (bend_x(cur_path)) (bend_y(cur_path))
+                                       room1 = build_room (cur_path ^. start_x) (cur_path ^. start_y) (cur_path ^. bend_x) (cur_path ^. bend_y)
+                                       room2 = build_room (cur_path ^. end_x) (cur_path ^. end_y) (cur_path ^. bend_x) (cur_path ^. bend_y)
                                        in
                                        (room1 : (room2 : []))
 
@@ -221,8 +217,8 @@ module Dungeon where
     get_entry_point :: [RoomData] -> (Int, Int)
     get_entry_point list_of_rooms = let
                                     slor = sort_all_rooms list_of_rooms
-                                    x = up_left_x(head(slor))
-                                    y = down_right_y(head(slor))
+                                    x = (head(slor)) ^. up_left_x
+                                    y = (head(slor)) ^. down_right_y
                                     in
                                     (x,y)
 
@@ -230,8 +226,8 @@ module Dungeon where
     get_exit_point :: [RoomData] -> (Int, Int)
     get_exit_point list_of_rooms = let
                                    slor = sort_all_rooms list_of_rooms
-                                   x = down_right_x(last(slor))
-                                   y = up_left_y(last(slor))
+                                   x = (last(slor)) ^. down_right_x
+                                   y = (last(slor)) ^. up_left_y
                                    in
                                    (x, y)
 
@@ -239,7 +235,7 @@ module Dungeon where
     conv_floor_to_seq :: [[Tile]] -> Data_Seq.Seq (Data_Seq.Seq Tile)
     conv_floor_to_seq [] = Data_Seq.empty
     conv_floor_to_seq cur_floor = (Data_Seq.<|) (Data_Seq.fromList (head(cur_floor))) (conv_floor_to_seq (tail(cur_floor)))
-    
+
     make_decision :: [Int] -> Int -> Bool
     make_decision randoms percentage = let
                                        rand_100 = map (`rem` 100) randoms
@@ -258,35 +254,35 @@ module Dungeon where
     get_potions_impl list_of_rooms dnsty rands p_list = let
                                             room_select = (head(rands)) `rem` (length(list_of_rooms))
                                             selected_room = list_of_rooms!!(room_select)
-                                            select_x = (up_left_x(selected_room)) + (rands!!1 `rem` ((down_right_x(selected_room)) - (up_left_x(selected_room))))
-                                            select_y = (up_left_y(selected_room)) + (rands!!2 `rem` ((down_right_y(selected_room)) - (up_left_y(selected_room))))   
+                                            select_x = (selected_room ^. up_left_x) + (rands!!1 `rem` ((selected_room ^. down_right_x) - (selected_room ^. up_left_x)))
+                                            select_y = (selected_room ^. up_left_y) + (rands!!2 `rem` ((selected_room ^. down_right_y) - (selected_room ^. up_left_y)))
                                             in
-                                            if (make_decision (take 10 (drop 4 rands)) 10) then 
+                                            if (make_decision (take 10 (drop 4 rands)) 10) then
                                                get_potions_impl (list_of_rooms) (dnsty-1) (drop 13 rands) ((select_x, select_y) : p_list)
-                                            else 
+                                            else
                                                get_potions_impl (list_of_rooms) (dnsty-1) (drop 13 rands) (p_list)
-                                                    
+
     get_potion_map :: [(Int, Int)] -> Map.Map (Int, Int) Potion
-    get_potion_map p_list = Map.fromList (zip (p_list) (repeat(Potion{effect=Heal, remain=1})))
-    
+    get_potion_map p_list = Map.fromList (zip (p_list) (repeat(Potion{_remain=1})))
+
     get_weapons :: [RoomData] -> Int -> [Int] -> Map.Map (Int, Int) Potion -> ([(Int, Int)], [Int])
     get_weapons list_of_rooms dnsty rands p_map = get_weapons_impl list_of_rooms dnsty rands [] p_map
-    
+
     get_weapons_impl :: [RoomData] -> Int -> [Int] -> [(Int, Int)] -> Map.Map (Int, Int) Potion -> ([(Int, Int)], [Int])
     get_weapons_impl _ 0 rands c_list p_map = (c_list, rands)
     get_weapons_impl list_of_rooms dnsty rands c_list p_map = let
                                                       room_select = (head(rands)) `rem` (length(list_of_rooms))
                                                       selected_room = list_of_rooms!!(room_select)
-                                                      select_x = (up_left_x(selected_room)) + (rands!!1 `rem` ((down_right_x(selected_room)) - (up_left_x(selected_room))))
-                                                      select_y = (up_left_y(selected_room)) + (rands!!2 `rem` ((down_right_y(selected_room)) - (up_left_y(selected_room))))
+                                                      select_x = (selected_room ^. up_left_x) + (rands!!1 `rem` ((selected_room ^. down_right_x) - (selected_room ^. up_left_x)))
+                                                      select_y = (selected_room ^. up_left_y) + (rands!!2 `rem` ((selected_room ^. down_right_y) - (selected_room ^. up_left_y)))
                                                       in
                                                       if (make_decision (take 10 (drop 4 rands)) 5) then
                                                          if Map.member (select_x, select_y) (p_map) then
                                                             get_weapons_impl (list_of_rooms) (dnsty-1) (drop 13 rands) (c_list) (p_map)
-                                                         else 
+                                                         else
                                                             get_weapons_impl (list_of_rooms) (dnsty-1) (drop 13 rands) ((select_x, select_y) : c_list) (p_map)
-                                                      else 
+                                                      else
                                                          get_weapons_impl (list_of_rooms) (dnsty-1) (drop 13 rands) (c_list) (p_map)
-                                                         
+
     get_weapon_map :: [(Int, Int)] -> Map.Map (Int, Int) Weapon
-    get_weapon_map w_list = Map.fromList (zip (w_list) (repeat(Weapon{charges=15, weight=2, might=2, hit=70, crit=0, minrange=1, maxrange=1})))
+    get_weapon_map w_list = Map.fromList (zip (w_list) (repeat(Weapon{_charges=15, _weight=2, _might=2, _hit=70, _crit=0, _minrange=1, _maxrange=1})))
