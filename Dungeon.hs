@@ -6,14 +6,13 @@ module Dungeon where
     import qualified Data.Map.Strict as Map
     import Entity
 
-    -- Tile can be one of Floor, Room and Path
-    data Tile = Floor | Room | Path | Exit deriving(Eq)
+    -- Tile can be one of Floor, Room and Exit
+    data Tile = Floor | Room | Exit deriving(Eq)
 
     -- How each tile should be displayed
     instance Show Tile where
        show Floor = " "
        show Room = "."
-       show Path = "."
        show Exit = "X"
 
     -- Directions. These are meant for traversing the Rooms (internally). Could be one of North, South, East or None
@@ -236,6 +235,7 @@ module Dungeon where
     conv_floor_to_seq [] = Data_Seq.empty
     conv_floor_to_seq cur_floor = (Data_Seq.<|) (Data_Seq.fromList (head(cur_floor))) (conv_floor_to_seq (tail(cur_floor)))
 
+    -- This function makes decisions for you
     make_decision :: [Int] -> Int -> Bool
     make_decision randoms percentage = let
                                        rand_100 = map (`rem` 100) randoms
@@ -246,9 +246,11 @@ module Dungeon where
                                        else
                                           False
 
+    -- Function to generate a set of potions
     get_potions :: [RoomData] -> Int -> [Int] -> ([(Int, Int)], [Int])
     get_potions list_of_rooms dnsty rands = get_potions_impl list_of_rooms dnsty rands []
 
+    -- Implicit function to generate a set of potions
     get_potions_impl :: [RoomData] -> Int -> [Int] -> [(Int, Int)] -> ([(Int, Int)], [Int])
     get_potions_impl _ 0 rands p_list = (p_list, rands)
     get_potions_impl list_of_rooms dnsty rands p_list = let
@@ -262,12 +264,15 @@ module Dungeon where
                                             else
                                                get_potions_impl (list_of_rooms) (dnsty-1) (drop 13 rands) (p_list)
 
+   -- Function to make the list of potions into a map
     get_potion_map :: [(Int, Int)] -> Map.Map (Int, Int) Potion
     get_potion_map p_list = Map.fromList (zip (p_list) (repeat(Potion{_remain=1})))
 
+    -- Function to generate weapons 
     get_weapons :: [RoomData] -> Int -> [Int] -> Map.Map (Int, Int) Potion -> ([(Int, Int)], [Int])
     get_weapons list_of_rooms dnsty rands p_map = get_weapons_impl list_of_rooms dnsty rands [] p_map
 
+    -- Implicit function generate weapons
     get_weapons_impl :: [RoomData] -> Int -> [Int] -> [(Int, Int)] -> Map.Map (Int, Int) Potion -> ([(Int, Int)], [Int])
     get_weapons_impl _ 0 rands c_list p_map = (c_list, rands)
     get_weapons_impl list_of_rooms dnsty rands c_list p_map = let
@@ -284,5 +289,6 @@ module Dungeon where
                                                       else
                                                          get_weapons_impl (list_of_rooms) (dnsty-1) (drop 13 rands) (c_list) (p_map)
 
+    -- Function to make the list of weapons into a map
     get_weapon_map :: [(Int, Int)] -> Map.Map (Int, Int) Weapon
     get_weapon_map w_list = Map.fromList (zip (w_list) (repeat(Weapon{_charges=15, _weight=2, _might=2, _hit=70, _crit=0, _minrange=1, _maxrange=1})))

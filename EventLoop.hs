@@ -53,6 +53,7 @@ module EventLoop where
                    | otherwise = do
                             let new_dung_map = make_monster dung_map
                             system "clear"
+                            putStrLn ("Current Floor = " ++ (show(dung_map ^. floor_number)))
                             putStrLn (show(dung_map ^. player))
                             handle_display new_dung_map
                             input <- get_input
