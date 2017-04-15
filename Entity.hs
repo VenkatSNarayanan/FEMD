@@ -27,13 +27,15 @@ module Entity where
     instance Show Character where
        show charac = "Your original stats:\nHP=" ++ show(charac ^. (stats . hp)) ++ "\tStrength=" ++ show(charac ^. (stats . strength)) ++ "\tSkill=" ++ show(charac ^. (stats . skill)) ++ "\tSpeed=" ++ show(charac ^. (stats . speed)) ++ "\tLuck=" ++ show(charac ^. (stats . luck)) ++ "\tDefense=" ++ show(charac ^. (stats.defense))++ "\nInventory:\n" ++ show(charac ^. items) ++ "\nCurrent Status: \nCurrent HP=" ++ show(charac ^. (status . currhp)) ++ "\n"
 
+    --Extract a weapon from the inventory, if it is present
     getWeapon :: [Item] -> Maybe Weapon
     getWeapon items = foldr (\item rest -> case item of (WeaponTag w) -> Just (w)
                                                         (PotionTag _) -> rest) Nothing items
+    --Extract a potion from the inventory, if it is present
     getPotion :: [Item] -> Maybe Potion
     getPotion items = foldr (\item rest -> case item of (PotionTag p) -> Just (p)
                                                         (WeaponTag _) -> rest) Nothing items
-
+    --Modifies inventory to reflect a single attack
     useWeapon :: [Item] -> [Item]
     useWeapon [] = []
     useWeapon ((PotionTag x):xs) = (PotionTag x):useWeapon xs
@@ -42,27 +44,35 @@ module Entity where
         then xs
         else (WeaponTag ((weapon) & charges -~1)):xs
 
+    --Modifies inventory to reflect quaffing a single potion
     usePotion :: [Item] -> [Item]
     usePotion [] = []
     usePotion ((WeaponTag x):xs) = (WeaponTag x):usePotion xs
     usePotion ((PotionTag potion):xs) = (PotionTag ((potion) & remain -~1)):xs
 
+    --Adds potion to inventory
     digPotion :: [Item] -> [Item]
     digPotion [] = []
     digPotion ((WeaponTag x):xs) = (WeaponTag x):digPotion xs
     digPotion ((PotionTag potion):xs) = (PotionTag ((potion) & remain +~1)):xs
+
+    --Calculates attack speed of a character as they are
     attackspeed :: Character -> Int
     attackspeed charac = (charac ^. (stats . speed)) - (fromMaybe 0 (liftM (view weight) (getWeapon (charac ^. items))))
 
+    --Calculates the character's base accuracy
     hitrate :: Character -> Int
     hitrate charac = (2 * (charac ^. (stats . skill))) + ((charac ^. (stats . luck)) `div` 2) + (fromMaybe 0 (liftM (view hit) (getWeapon (charac ^. items))))
 
+    --Calculates the character's base dodge rate
     evaderate :: Character -> Int
     evaderate charac = (2 * (charac ^. (stats . speed))) + (charac ^. (stats . luck))
 
+    --Checks if an integer falls within the given range [l,u]
     inRange :: Int -> Int -> Int -> Bool
     inRange a l u = (a >= l) && (a <= u)
 
+    --Simulates one round of combat between 2 characters. Formulae used are mostly based on Fire Emblem: Shadow Dragon and the Blade of Light.
     combat :: Character -> Character -> Int -> [Int] -> (Maybe Character,Maybe Character,[Int])
     combat p1 p2 range randomstream =
         let weapon1 = getWeapon items1
