@@ -263,7 +263,7 @@ module Dungeon where
                                                get_potions_impl (list_of_rooms) (dnsty-1) (drop 13 rands) (p_list)
 
     get_potion_map :: [(Int, Int)] -> Map.Map (Int, Int) Potion
-    get_potion_map p_list = Map.fromList (zip (p_list) (repeat(Potion{_effect=Heal, _remain=1})))
+    get_potion_map p_list = Map.fromList (zip (p_list) (repeat(Potion{_remain=1})))
 
     get_weapons :: [RoomData] -> Int -> [Int] -> Map.Map (Int, Int) Potion -> ([(Int, Int)], [Int])
     get_weapons list_of_rooms dnsty rands p_map = get_weapons_impl list_of_rooms dnsty rands [] p_map

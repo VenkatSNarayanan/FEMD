@@ -10,24 +10,22 @@ module Entity where
     instance Show Weapon where
        show Weapon {_charges=charges, _weight=weight, _might=might, _hit=hit, _crit=crit, _minrange=minrange, _maxrange=maxrange} = "\nWeapon : Charges = " ++ show(charges) ++ "\tWeight = " ++ show(weight) ++ "\tMight = " ++ show(might) ++ "\tHit = " ++ show(hit) ++ "\tCrit = " ++ show(crit) ++ "\tMinimum Range = " ++ show(minrange) ++ "\tMaximum Range = " ++ show(maxrange) ++ "\n"
     makeLenses ''Weapon
-    data PotionEffect = Heal | Restore | Poison deriving (Show)
-    data Condition = Healthy | Poisoned deriving (Show)
-    data Potion = Potion {_effect :: PotionEffect, _remain :: Int}
-    instance Show Potion where
-       show Potion {_effect=effect, _remain=remain} = "\nPotion : Effect = " ++ show(effect) ++ "\tRemaining = " ++ show(remain) ++ "\n"
+    data Potion = Potion {_remain :: Int}
     makeLenses ''Potion
+    instance Show Potion where
+       show potion = "\nPotion : Remaining = " ++ show(potion ^. remain) ++ "\n"
     data Item = WeaponTag Weapon | PotionTag Potion
     instance Show Item where
        show (WeaponTag weapon) = show(weapon)
        show (PotionTag potion) = show(potion)
     data Stats = Stats {_hp :: Int, _strength :: Int,_skill :: Int, _speed :: Int, _luck:: Int, _defense :: Int} deriving (Show)
     makeLenses ''Stats
-    data Status = Status { _currhp :: Int, _condition :: Condition} deriving (Show)
+    data Status = Status { _currhp :: Int} deriving (Show)
     makeLenses ''Status
     data Character = Character {_stats:: Stats, _items :: [Item], _status :: Status}
-    instance Show Character where
-       show Character {_stats=stats, _items=items, _status=status} = "Your original stats:\nHP=" ++ show(_hp(stats)) ++ "\tStrength=" ++ show(_strength(stats)) ++ "\tSkill=" ++ show(_skill(stats)) ++ "\tSpeed=" ++ show(_speed(stats)) ++ "\tLuck=" ++ show(_luck(stats)) ++ "\tDefense=" ++ show(_defense(stats)) ++ "\nInventory:\n" ++ show(items) ++ "\nCurrent Status: \n" ++ "Current HP=" ++ show(_currhp(status)) ++ "\tCondtion=" ++ show(_condition(status)) ++ "\n"
     makeLenses ''Character
+    instance Show Character where
+       show charac = "Your original stats:\nHP=" ++ show(charac ^. (stats . hp)) ++ "\tStrength=" ++ show(charac ^. (stats . strength)) ++ "\tSkill=" ++ show(charac ^. (stats . skill)) ++ "\tSpeed=" ++ show(charac ^. (stats . speed)) ++ "\tLuck=" ++ show(charac ^. (stats . luck)) ++ "\tDefense=" ++ show(charac ^. (stats.defense))++ "\nInventory:\n" ++ show(charac ^. items) ++ "\nCurrent Status: \nCurrent HP=" ++ show(charac ^. (status . currhp)) ++ "\n"
 
     getWeapon :: [Item] -> Maybe Weapon
     getWeapon items = foldr (\item rest -> case item of (WeaponTag w) -> Just (w)

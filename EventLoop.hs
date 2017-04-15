@@ -12,14 +12,14 @@ module EventLoop where
     import Control.Lens
     import Control.Exception
 
-    -- DungeonMap datatype : Contains information about the floor (a Sequence of Sequence of Tile (in Dungeon.hs)), the rooms and paths connecting the rooms, entry and exit points on the map, the statistics of the player, monsters present on the map, locations of potions and weapons strewn on the floor 
+    -- DungeonMap datatype : Contains information about the floor (a Sequence of Sequence of Tile (in Dungeon.hs)), the rooms and paths connecting the rooms, entry and exit points on the map, the statistics of the player, monsters present on the map, locations of potions and weapons strewn on the floor
     -- Also contains auxiliary information about the current floor you are on, the random number sequence.
     data DungeonMap = DungeonMap { _dung_floor :: Data_Seq.Seq (Data_Seq.Seq Tile), _room_data :: [RoomData], _path_data :: [PathData], _entry_point :: (Int, Int), _exit_point :: (Int, Int), _player :: Character, _monsters :: Map.Map (Int,Int) Character, _randomnums :: [Int], _floor_number :: Int, _potions :: Map.Map (Int, Int) Potion, _weapons :: Map.Map (Int, Int) Weapon}
     makeLenses ''DungeonMap
 
     -- Contains the input types to distibguish between inputs
     data Inputs = Quit | MLeft | MDown | MUp | MRight | Quaff | WieldLeft | WieldDown | WieldUp | WieldRight | Wait | Whatever
-    
+
     -- Contains the direction types
     data LDirection = LLeft | LRight | LUp | LDown deriving(Eq)
 
@@ -271,7 +271,7 @@ module EventLoop where
     make_monster dung_map = if (make_decision (take 10 (dung_map ^. randomnums)) 3) then
                                let
                                mons_coords = select_coords (dung_map ^. room_data) (take 3 (tail(dung_map ^. randomnums)))
-                               new_mons = Character {_stats = Stats{_hp=20, _strength=5, _skill=5, _speed=10, _luck=5, _defense=5}, _items=[WeaponTag Weapon{_charges=46, _weight=5, _might=5, _hit=90, _crit=0, _minrange=1, _maxrange=1}], _status=Status{_currhp=20, _condition=Healthy}}
+                               new_mons = Character {_stats = Stats{_hp=20, _strength=5, _skill=4, _speed=10, _luck=0, _defense=5}, _items=[WeaponTag Weapon{_charges=46, _weight=5, _might=5, _hit=90, _crit=0, _minrange=1, _maxrange=1}], _status=Status{_currhp=20}}
                                in
                                dung_map & monsters %~ (Map.insert mons_coords new_mons) & randomnums %~ (drop 4)
                             else
